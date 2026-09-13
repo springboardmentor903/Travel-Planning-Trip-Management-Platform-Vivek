@@ -14,6 +14,7 @@ import TripDetails from "./pages/TripDetails";
 import CreateItinerary from "./pages/CreateItinerary";
 import EditTrip from "./pages/EditTrip";
 import TripInvitation from "./pages/TripInvitation";
+import Notifications from "./pages/Notifications";
 
 function App() {
   return (
@@ -30,6 +31,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/notifications" element={<Notifications />} />
 
         {/* Destinations */}
         <Route path="/destinations" element={<Destinations />} />

@@ -3,6 +3,27 @@ import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
+import {
+  Chart as ChartJS,
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
+} from "chart.js";
+import { Pie, Bar } from "react-chartjs-2";
+
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title
+);
 
 // ─── Inline SVG Icons ──────────────────────────────────────────────────────
 
@@ -193,6 +214,9 @@ function Dashboard() {
   const [tripWeatherMap, setTripWeatherMap] = useState({});
   // Ref to prevent stale-closure double-fetching
   const tripWeatherFetchedRef = useRef(new Set());
+
+  // Chart type selector for Expense Summary: "pie" | "bar"
+  const [expenseChartType, setExpenseChartType] = useState("pie");
 
   const rawName = localStorage.getItem("userName") || "Traveler";
   const userRole = localStorage.getItem("userRole") || "";
@@ -652,12 +676,44 @@ function Dashboard() {
 
             {/* Expense Summary by Category Card */}
             <div style={styles.cardBox}>
-              <div style={styles.cardBoxHeader}>
-                <div style={styles.cardBoxIconWrap}>📊</div>
-                <div>
-                  <h3 style={styles.cardBoxTitle}>Expense Summary</h3>
-                  <p style={styles.cardBoxSub}>Category breakdown across all trips</p>
+              <div style={styles.cardBoxHeaderWithControl}>
+                <div style={styles.cardBoxHeaderLeft}>
+                  <div style={styles.cardBoxIconWrap}>📊</div>
+                  <div>
+                    <h3 style={styles.cardBoxTitle}>Expense Summary</h3>
+                    <p style={styles.cardBoxSub}>Category breakdown across all trips</p>
+                  </div>
                 </div>
+
+                {travelerData.expenseSummary.length > 0 && (
+                  <div style={styles.chartControlWrap}>
+                    <span style={styles.chartControlLabel}>Chart Type:</span>
+                    <div style={styles.chartSegmentWrap}>
+                      <button
+                        type="button"
+                        style={{
+                          ...styles.chartSegmentBtn,
+                          ...(expenseChartType === "pie" ? styles.chartSegmentBtnActive : {}),
+                        }}
+                        onClick={() => setExpenseChartType("pie")}
+                        id="expense-chart-pie-btn"
+                      >
+                        🥧 Pie
+                      </button>
+                      <button
+                        type="button"
+                        style={{
+                          ...styles.chartSegmentBtn,
+                          ...(expenseChartType === "bar" ? styles.chartSegmentBtnActive : {}),
+                        }}
+                        onClick={() => setExpenseChartType("bar")}
+                        id="expense-chart-bar-btn"
+                      >
+                        📊 Bar
+                      </button>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {travelerData.expenseSummary.length === 0 ? (
@@ -673,29 +729,153 @@ function Dashboard() {
                   </Link>
                 </div>
               ) : (
-                <div style={styles.categoryList}>
-                  {(() => {
-                    const totalS = travelerData.expenseSummary.reduce((sum, item) => sum + Number(item.amount || 0), 0);
-                    return travelerData.expenseSummary.map((item) => {
-                      const amount = Number(item.amount || 0);
-                      const pct = totalS > 0 ? Math.round((amount / totalS) * 100) : 0;
-                      return (
-                        <div key={item.category} style={styles.categoryItem}>
-                          <div style={styles.categoryHeaderRow}>
-                            <div style={styles.categoryNameWrap}>
-                              <span>{getCategoryIcon(item.category)}</span>
-                              <span style={styles.categoryName}>{item.category}</span>
+                (() => {
+                  const expenseList = travelerData.expenseSummary;
+                  const totalS = expenseList.reduce(
+                    (sum, item) => sum + Number(item.amount || 0),
+                    0
+                  );
+                  const labels = expenseList.map((item) => item.category || "Other");
+                  const amounts = expenseList.map((item) => Number(item.amount || 0));
+                  const colors = [
+                    "#0284c7",
+                    "#10b981",
+                    "#f59e0b",
+                    "#8b5cf6",
+                    "#ec4899",
+                    "#64748b",
+                    "#06b6d4",
+                  ];
+
+                  const pieData = {
+                    labels,
+                    datasets: [
+                      {
+                        data: amounts,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderWidth: 2,
+                        borderColor: "#ffffff",
+                      },
+                    ],
+                  };
+
+                  const pieOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: {
+                        position: "bottom",
+                        labels: {
+                          boxWidth: 12,
+                          padding: 10,
+                          font: { size: 12, family: "'Plus Jakarta Sans', sans-serif" },
+                        },
+                      },
+                      tooltip: {
+                        callbacks: {
+                          label: (context) => {
+                            const val = context.raw || 0;
+                            const pct = totalS > 0 ? Math.round((val / totalS) * 100) : 0;
+                            return ` ₹${Number(val).toLocaleString()} (${pct}%)`;
+                          },
+                        },
+                      },
+                    },
+                  };
+
+                  const barData = {
+                    labels,
+                    datasets: [
+                      {
+                        label: "Expenses (₹)",
+                        data: amounts,
+                        backgroundColor: colors.slice(0, labels.length),
+                        borderRadius: 8,
+                      },
+                    ],
+                  };
+
+                  const barOptions = {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                      legend: { display: false },
+                      tooltip: {
+                        callbacks: {
+                          label: (context) =>
+                            ` ₹${Number(context.parsed.y || 0).toLocaleString()}`,
+                        },
+                      },
+                    },
+                    scales: {
+                      y: {
+                        beginAtZero: true,
+                        ticks: {
+                          callback: (val) => `₹${Number(val).toLocaleString()}`,
+                          font: { size: 11, family: "'Plus Jakarta Sans', sans-serif" },
+                        },
+                        grid: { color: "#f1f5f9" },
+                      },
+                      x: {
+                        grid: { display: false },
+                        ticks: {
+                          font: { size: 11, family: "'Plus Jakarta Sans', sans-serif" },
+                        },
+                      },
+                    },
+                  };
+
+                  return (
+                    <div>
+                      {/* Dynamic Chart Container */}
+                      <div style={styles.dashboardChartBox}>
+                        {expenseChartType === "pie" ? (
+                          <Pie data={pieData} options={pieOptions} />
+                        ) : (
+                          <Bar data={barData} options={barOptions} />
+                        )}
+                      </div>
+
+                      {/* Total Metric Strip */}
+                      <div style={styles.chartTotalStrip}>
+                        <span style={styles.chartTotalLabel}>Total:</span>
+                        <strong style={styles.chartTotalAmount}>
+                          ₹{totalS.toLocaleString()}
+                        </strong>
+                      </div>
+
+                      {/* Category Breakdown Progress Bars */}
+                      <div style={styles.categoryList}>
+                        {expenseList.map((item) => {
+                          const amount = Number(item.amount || 0);
+                          const pct =
+                            totalS > 0 ? Math.round((amount / totalS) * 100) : 0;
+                          return (
+                            <div key={item.category} style={styles.categoryItem}>
+                              <div style={styles.categoryHeaderRow}>
+                                <div style={styles.categoryNameWrap}>
+                                  <span>{getCategoryIcon(item.category)}</span>
+                                  <span style={styles.categoryName}>{item.category}</span>
+                                </div>
+                                <span style={styles.categoryAmount}>
+                                  ₹{amount.toLocaleString()} ({pct}%)
+                                </span>
+                              </div>
+                              <div style={styles.categoryBarTrack}>
+                                <div
+                                  style={{
+                                    ...styles.categoryBarFill,
+                                    width: `${pct}%`,
+                                  }}
+                                />
+                              </div>
                             </div>
-                            <span style={styles.categoryAmount}>₹{amount.toLocaleString()} ({pct}%)</span>
-                          </div>
-                          <div style={styles.categoryBarTrack}>
-                            <div style={{ ...styles.categoryBarFill, width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      );
-                    });
-                  })()}
-                </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  );
+                })()
               )}
             </div>
           </div>

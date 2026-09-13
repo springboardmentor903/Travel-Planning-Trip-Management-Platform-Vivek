@@ -228,8 +228,7 @@ function NotificationDropdown() {
           ...(isOpen ? styles.bellButtonActive : {}),
         }}
         onClick={() => {
-          setIsOpen(!isOpen);
-          setConfirmDeleteId(null);
+          navigate("/notifications");
         }}
         title="Notifications"
         aria-label="Notifications"

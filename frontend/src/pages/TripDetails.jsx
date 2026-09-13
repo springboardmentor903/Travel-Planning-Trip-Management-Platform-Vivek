@@ -6,12 +6,70 @@ import {
   ArcElement,
   Tooltip,
   Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title,
 } from "chart.js";
-import { Doughnut } from "react-chartjs-2";
+import { Doughnut, Pie, Bar } from "react-chartjs-2";
 import Navbar from "../components/Navbar";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
-ChartJS.register(ArcElement, Tooltip, Legend);
+ChartJS.register(
+  ArcElement,
+  Tooltip,
+  Legend,
+  CategoryScale,
+  LinearScale,
+  BarElement,
+  Title
+);
+
+function extractWeatherFields(data) {
+  if (!data) return null;
+  const temp =
+    data.temperature != null
+      ? data.temperature
+      : data.temp != null
+      ? data.temp
+      : data.main?.temp != null
+      ? Math.round(data.main.temp)
+      : null;
+
+  const humidity =
+    data.humidity != null
+      ? data.humidity
+      : data.main?.humidity != null
+      ? data.main.humidity
+      : null;
+
+  const windSpeedVal =
+    data.windSpeed != null
+      ? data.windSpeed
+      : data.wind != null
+      ? (typeof data.wind === "object" ? data.wind.speed ?? null : data.wind)
+      : null;
+
+  const condition =
+    data.condition ||
+    data.description ||
+    (Array.isArray(data.weather) ? data.weather[0]?.description : null) ||
+    "—";
+
+  const city = data.city || data.name || "";
+  return { temp, humidity, windSpeed: windSpeedVal, condition, city };
+}
+
+function getWeatherIconEmoji(condition = "") {
+  const c = condition.toLowerCase();
+  if (c.includes("clear") || c.includes("sun")) return "☀️";
+  if (c.includes("cloud") || c.includes("overcast")) return "🌤️";
+  if (c.includes("rain") || c.includes("drizzle")) return "🌧️";
+  if (c.includes("thunder") || c.includes("storm")) return "⛈️";
+  if (c.includes("snow")) return "❄️";
+  if (c.includes("mist") || c.includes("fog") || c.includes("haze")) return "🌫️";
+  return "🌤️";
+}
 
 function TripDetails() {
   const { id } = useParams();
@@ -105,6 +163,18 @@ function TripDetails() {
   });
 
   // =====================================================
+  // WEATHER
+  // =====================================================
+  const [weather, setWeather] = useState(null);
+  const [loadingWeather, setLoadingWeather] = useState(false);
+  const [weatherError, setWeatherError] = useState("");
+
+  // =====================================================
+  // CHART TYPE
+  // =====================================================
+  const [expenseChartType, setExpenseChartType] = useState("pie"); // "pie" | "bar"
+
+  // =====================================================
   // DELETE TRIP
   // =====================================================
   const [showDeleteModal, setShowDeleteModal] = useState(false);
@@ -189,6 +259,29 @@ function TripDetails() {
   }, [trip, members]);
 
   // =====================================================
+  // FETCH WEATHER
+  // =====================================================
+  const fetchWeatherForDestination = async (destName) => {
+    if (!destName || !destName.trim()) return;
+    try {
+      setLoadingWeather(true);
+      setWeatherError("");
+      const response = await axios.get(
+        `http://localhost:8080/api/weather/${encodeURIComponent(destName.trim())}`,
+        getAuthConfig()
+      );
+      const fields = extractWeatherFields(response.data);
+      setWeather(fields);
+    } catch (err) {
+      console.error("Error loading weather for destination:", err);
+      setWeather(null);
+      setWeatherError("Weather information unavailable");
+    } finally {
+      setLoadingWeather(false);
+    }
+  };
+
+  // =====================================================
   // FETCH TRIP
   // =====================================================
   const fetchTrip = async () => {
@@ -203,6 +296,13 @@ function TripDetails() {
 
       console.log("TRIP DETAILS:", response.data);
       setTrip(response.data);
+      const destName =
+        response.data?.destination?.name ||
+        response.data?.destination?.destinationName ||
+        "";
+      if (destName) {
+        fetchWeatherForDestination(destName);
+      }
     } catch (err) {
       console.error("Error fetching trip:", err);
       if (handleAuthError(err)) return;
@@ -894,6 +994,48 @@ function TripDetails() {
     maintainAspectRatio: false,
   };
 
+  const pieData = doughnutData;
+  const pieOptions = doughnutOptions;
+
+  const barData = {
+    labels: chartLabels.length ? chartLabels : ["No Expenses"],
+    datasets: [
+      {
+        label: "Amount (₹)",
+        data: chartDataPoints.length ? chartDataPoints : [0],
+        backgroundColor: chartColors.slice(0, chartLabels.length || 1),
+        borderRadius: 8,
+      },
+    ],
+  };
+
+  const barOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        callbacks: {
+          label: (context) => ` ₹${Number(context.parsed.y || 0).toLocaleString()}`,
+        },
+      },
+    },
+    scales: {
+      y: {
+        beginAtZero: true,
+        ticks: {
+          callback: (val) => `₹${Number(val).toLocaleString()}`,
+          font: { size: 11, family: "Plus Jakarta Sans, sans-serif" },
+        },
+        grid: { color: "#f1f5f9" },
+      },
+      x: {
+        grid: { display: false },
+        ticks: { font: { size: 11, family: "Plus Jakarta Sans, sans-serif" } },
+      },
+    },
+  };
+
   return (
     <div style={styles.page}>
       <Navbar />
@@ -1097,6 +1239,85 @@ function TripDetails() {
                     <strong style={styles.infoValue}>{trip.status || "PLANNED"}</strong>
                   </div>
                 </div>
+              </div>
+
+              {/* Dedicated Weather Card */}
+              <div style={styles.sectionCard} id="trip-weather-section-card">
+                <div style={styles.cardHeaderWithAction}>
+                  <h3 style={styles.cardSectionTitle}>
+                    Weather in {weather?.city || destinationName}
+                  </h3>
+                  {loadingWeather ? (
+                    <span style={styles.weatherLiveBadge}>Checking...</span>
+                  ) : weather ? (
+                    <span style={styles.weatherLiveBadge}>Live Forecast</span>
+                  ) : null}
+                </div>
+
+                {loadingWeather ? (
+                  <div style={styles.weatherLoadingBox}>
+                    <div style={styles.weatherMiniSpinner} />
+                    <span style={styles.weatherLoadingText}>
+                      Checking weather for {destinationName}...
+                    </span>
+                  </div>
+                ) : weatherError || !weather ? (
+                  <div style={styles.weatherUnavailableBox}>
+                    <span style={styles.weatherUnavailableIcon}>⛅</span>
+                    <p style={styles.weatherUnavailableText}>
+                      Weather information unavailable
+                    </p>
+                    <button
+                      type="button"
+                      style={styles.weatherRetryBtn}
+                      onClick={() => fetchWeatherForDestination(destinationName)}
+                    >
+                      Retry Weather
+                    </button>
+                  </div>
+                ) : (
+                  <div style={styles.weatherCardContent}>
+                    <div style={styles.weatherMainRow}>
+                      <div style={styles.weatherTempWrap}>
+                        <span style={styles.weatherIconEmoji}>
+                          {getWeatherIconEmoji(weather.condition)}
+                        </span>
+                        <span style={styles.weatherTempText}>
+                          {weather.temp != null ? `${weather.temp}°C` : "—"}
+                        </span>
+                      </div>
+                      <div style={styles.weatherConditionWrap}>
+                        <span style={styles.weatherConditionText}>
+                          {weather.condition
+                            ? weather.condition.charAt(0).toUpperCase() + weather.condition.slice(1)
+                            : "Clear"}
+                        </span>
+                        <span style={styles.weatherCitySub}>
+                          📍 {weather.city || destinationName}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div style={styles.weatherMetricsGrid}>
+                      <div style={styles.weatherMetricItem}>
+                        <span style={styles.weatherMetricLabel}>Humidity</span>
+                        <strong style={styles.weatherMetricVal}>
+                          {weather.humidity != null ? `${weather.humidity}%` : "—"}
+                        </strong>
+                      </div>
+                      <div style={styles.weatherMetricItem}>
+                        <span style={styles.weatherMetricLabel}>Wind</span>
+                        <strong style={styles.weatherMetricVal}>
+                          {weather.windSpeed != null ? `${weather.windSpeed} km/h` : "—"}
+                        </strong>
+                      </div>
+                    </div>
+
+                    <div style={styles.weatherFooterNote}>
+                      <span>Updated recently</span>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Budget Progress Card */}
@@ -1316,9 +1537,37 @@ function TripDetails() {
 
               {/* Spending vs Allocation Chart Card */}
               <div style={styles.budgetCard}>
-                <h3 style={styles.cardSectionTitle}>Expense Spending Summary</h3>
+                <div style={styles.cardHeaderWithAction}>
+                  <h3 style={styles.cardSectionTitle}>Expense Spending Summary</h3>
+                  <div style={styles.chartTypeSegmentWrap}>
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.chartSegmentBtn,
+                        ...(expenseChartType === "pie" ? styles.chartSegmentBtnActive : {}),
+                      }}
+                      onClick={() => setExpenseChartType("pie")}
+                    >
+                      🥧 Pie
+                    </button>
+                    <button
+                      type="button"
+                      style={{
+                        ...styles.chartSegmentBtn,
+                        ...(expenseChartType === "bar" ? styles.chartSegmentBtnActive : {}),
+                      }}
+                      onClick={() => setExpenseChartType("bar")}
+                    >
+                      📊 Bar
+                    </button>
+                  </div>
+                </div>
                 <div style={styles.chartContainer}>
-                  <Doughnut data={doughnutData} options={doughnutOptions} />
+                  {expenseChartType === "pie" ? (
+                    <Pie data={pieData} options={pieOptions} />
+                  ) : (
+                    <Bar data={barData} options={barOptions} />
+                  )}
                 </div>
               </div>
             </div>
@@ -2431,6 +2680,187 @@ const styles = {
     fontSize: "17px",
     fontWeight: "700",
     color: "#0f172a",
+  },
+
+  /* Weather Card Styles */
+  weatherLiveBadge: {
+    background: "#e0f2fe",
+    color: "#0284c7",
+    fontSize: "11px",
+    fontWeight: "700",
+    padding: "3px 10px",
+    borderRadius: "12px",
+    border: "1px solid #bae6fd",
+  },
+
+  weatherLoadingBox: {
+    padding: "24px 0",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "10px",
+  },
+
+  weatherMiniSpinner: {
+    width: "24px",
+    height: "24px",
+    border: "3px solid #e2e8f0",
+    borderTopColor: "#0284c7",
+    borderRadius: "50%",
+    animation: "spin 0.8s linear infinite",
+  },
+
+  weatherLoadingText: {
+    fontSize: "13px",
+    color: "#64748b",
+  },
+
+  weatherUnavailableBox: {
+    padding: "20px 0",
+    textAlign: "center",
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+  },
+
+  weatherUnavailableIcon: {
+    fontSize: "28px",
+  },
+
+  weatherUnavailableText: {
+    fontSize: "14px",
+    color: "#64748b",
+    margin: 0,
+    fontWeight: "500",
+  },
+
+  weatherRetryBtn: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    color: "#0284c7",
+    fontSize: "12px",
+    fontWeight: "600",
+    padding: "4px 12px",
+    borderRadius: "6px",
+    cursor: "pointer",
+  },
+
+  weatherCardContent: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "16px",
+  },
+
+  weatherMainRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    padding: "12px 16px",
+    background: "linear-gradient(135deg, #f0f9ff 0%, #e0f2fe 100%)",
+    borderRadius: "12px",
+    border: "1px solid #bae6fd",
+  },
+
+  weatherTempWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
+  },
+
+  weatherIconEmoji: {
+    fontSize: "32px",
+    lineHeight: 1,
+  },
+
+  weatherTempText: {
+    fontSize: "28px",
+    fontWeight: "800",
+    color: "#0369a1",
+    letterSpacing: "-0.5px",
+  },
+
+  weatherConditionWrap: {
+    textAlign: "right",
+  },
+
+  weatherConditionText: {
+    display: "block",
+    fontSize: "14px",
+    fontWeight: "700",
+    color: "#0f172a",
+  },
+
+  weatherCitySub: {
+    display: "block",
+    fontSize: "12px",
+    color: "#0369a1",
+    fontWeight: "500",
+    marginTop: "2px",
+  },
+
+  weatherMetricsGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "12px",
+  },
+
+  weatherMetricItem: {
+    background: "#f8fafc",
+    border: "1px solid #e2e8f0",
+    borderRadius: "10px",
+    padding: "10px 14px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "2px",
+  },
+
+  weatherMetricLabel: {
+    fontSize: "11px",
+    color: "#64748b",
+    fontWeight: "600",
+  },
+
+  weatherMetricVal: {
+    fontSize: "15px",
+    color: "#0f172a",
+    fontWeight: "700",
+  },
+
+  weatherFooterNote: {
+    fontSize: "11px",
+    color: "#94a3b8",
+    textAlign: "right",
+    paddingTop: "2px",
+  },
+
+  /* Chart Type Selector */
+  chartTypeSegmentWrap: {
+    display: "flex",
+    background: "#f1f5f9",
+    padding: "3px",
+    borderRadius: "8px",
+    gap: "2px",
+  },
+
+  chartSegmentBtn: {
+    border: "none",
+    background: "transparent",
+    color: "#64748b",
+    padding: "4px 10px",
+    borderRadius: "6px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+    transition: "all 0.15s ease",
+  },
+
+  chartSegmentBtnActive: {
+    background: "#ffffff",
+    color: "#0284c7",
+    fontWeight: "700",
+    boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
   },
 
   cardHeaderWithAction: {
