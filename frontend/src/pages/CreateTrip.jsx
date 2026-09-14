@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 function CreateTrip() {
@@ -62,7 +63,7 @@ function CreateTrip() {
         setError("");
 
         const response = await axios.get(
-          "http://localhost:8080/api/destinations/search",
+          `${API_BASE_URL}/api/destinations/search`,
           {
             params: { query: query.trim() },
             ...getAuthConfig(),
@@ -142,7 +143,7 @@ function CreateTrip() {
       setSaving(true);
 
       const destinationResponse = await axios.post(
-        "http://localhost:8080/api/destinations/create-or-get",
+        `${API_BASE_URL}/api/destinations/create-or-get`,
         { name: selectedDestination.name },
         getAuthConfig()
       );
@@ -158,7 +159,7 @@ function CreateTrip() {
         status: form.status,
       };
 
-      await axios.post("http://localhost:8080/api/trips", tripData, getAuthConfig());
+      await axios.post(`${API_BASE_URL}/api/trips`, tripData, getAuthConfig());
 
       alert("Trip created successfully! 🎉");
       navigate("/trips");

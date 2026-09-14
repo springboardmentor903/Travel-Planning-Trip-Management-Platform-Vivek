@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 function EditTrip() {
@@ -47,7 +48,7 @@ function EditTrip() {
       setError("");
 
       const response = await axios.get(
-        `http://localhost:8080/api/trips/${id}`,
+        `${API_BASE_URL}/api/trips/${id}`,
         getAuthConfig()
       );
 
@@ -122,7 +123,7 @@ function EditTrip() {
       console.log("UPDATING TRIP:", payload);
 
       await axios.put(
-        `http://localhost:8080/api/trips/${id}`,
+        `${API_BASE_URL}/api/trips/${id}`,
         payload,
         getAuthConfig()
       );

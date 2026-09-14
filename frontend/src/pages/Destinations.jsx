@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 function Destinations() {
@@ -42,8 +43,8 @@ function Destinations() {
       setError("");
 
       const [allResponse, popularResponse] = await Promise.all([
-        axios.get("http://localhost:8080/api/destinations", getAuthConfig()),
-        axios.get("http://localhost:8080/api/destinations/popular", getAuthConfig()),
+        axios.get(`${API_BASE_URL}/api/destinations`, getAuthConfig()),
+        axios.get(`${API_BASE_URL}/api/destinations/popular`, getAuthConfig()),
       ]);
 
       setDestinations(Array.isArray(allResponse.data) ? allResponse.data : []);
@@ -83,7 +84,7 @@ function Destinations() {
         setError("");
 
         const response = await axios.get(
-          "http://localhost:8080/api/destinations/search",
+          `${API_BASE_URL}/api/destinations/search`,
           {
             params: { query: value.trim() },
             ...getAuthConfig(),
@@ -132,7 +133,7 @@ function Destinations() {
       setError("");
 
       const response = await axios.get(
-        "http://localhost:8080/api/destinations/search",
+        `${API_BASE_URL}/api/destinations/search`,
         {
           params: { query: query.trim() },
           ...getAuthConfig(),

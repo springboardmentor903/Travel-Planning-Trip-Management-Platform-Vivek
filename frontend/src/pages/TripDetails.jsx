@@ -13,6 +13,7 @@ import {
 } from "chart.js";
 import { Doughnut, Pie, Bar } from "react-chartjs-2";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 ChartJS.register(
@@ -267,7 +268,7 @@ function TripDetails() {
       setLoadingWeather(true);
       setWeatherError("");
       const response = await axios.get(
-        `http://localhost:8080/api/weather/${encodeURIComponent(destName.trim())}`,
+        `${API_BASE_URL}/api/weather/${encodeURIComponent(destName.trim())}`,
         getAuthConfig()
       );
       const fields = extractWeatherFields(response.data);
@@ -290,7 +291,7 @@ function TripDetails() {
       setError("");
 
       const response = await axios.get(
-        `http://localhost:8080/api/trips/${id}`,
+        `${API_BASE_URL}/api/trips/${id}`,
         getAuthConfig()
       );
 
@@ -320,7 +321,7 @@ function TripDetails() {
       setDeletingTrip(true);
       setDeleteTripError("");
       await axios.delete(
-        `http://localhost:8080/api/trips/${id}`,
+        `${API_BASE_URL}/api/trips/${id}`,
         getAuthConfig()
       );
       navigate("/trips");
@@ -344,7 +345,7 @@ function TripDetails() {
     try {
       setLoadingMembers(true);
       const response = await axios.get(
-        `http://localhost:8080/api/trips/${id}/members`,
+        `${API_BASE_URL}/api/trips/${id}/members`,
         getAuthConfig()
       );
       console.log("MEMBERS:", response.data);
@@ -423,7 +424,7 @@ function TripDetails() {
       setAddMemberSuccess("");
 
       const response = await axios.post(
-        `http://localhost:8080/api/trips/${id}/invitations`,
+        `${API_BASE_URL}/api/trips/${id}/invitations`,
         {
           email: addMemberForm.email.trim(),
           role: addMemberForm.role || "MEMBER",
@@ -469,7 +470,7 @@ function TripDetails() {
     try {
       setRemovingMember(targetUserId);
       await axios.delete(
-        `http://localhost:8080/api/trips/${id}/members/${targetUserId}`,
+        `${API_BASE_URL}/api/trips/${id}/members/${targetUserId}`,
         getAuthConfig()
       );
       await fetchMembers();
@@ -503,7 +504,7 @@ function TripDetails() {
     try {
       setChangingRole(targetUserId);
       await axios.put(
-        `http://localhost:8080/api/trips/${id}/members/${targetUserId}/role`,
+        `${API_BASE_URL}/api/trips/${id}/members/${targetUserId}/role`,
         { role: newRole },
         getAuthConfig()
       );
@@ -527,7 +528,7 @@ function TripDetails() {
     try {
       setLoadingBudget(true);
       const response = await axios.get(
-        `http://localhost:8080/api/budgets/trip/${id}`,
+        `${API_BASE_URL}/api/budgets/trip/${id}`,
         getAuthConfig()
       );
       console.log("BUDGET RESPONSE:", response.data);
@@ -588,14 +589,14 @@ function TripDetails() {
 
       if (budget) {
         await axios.put(
-          `http://localhost:8080/api/budgets/trip/${id}`,
+          `${API_BASE_URL}/api/budgets/trip/${id}`,
           payload,
           getAuthConfig()
         );
       } else {
         payload.tripId = Number(id);
         await axios.post(
-          `http://localhost:8080/api/budgets`,
+          `${API_BASE_URL}/api/budgets`,
           payload,
           getAuthConfig()
         );
@@ -619,7 +620,7 @@ function TripDetails() {
     try {
       setLoadingExpenses(true);
       const response = await axios.get(
-        `http://localhost:8080/api/expenses/trip/${id}`,
+        `${API_BASE_URL}/api/expenses/trip/${id}`,
         getAuthConfig()
       );
       console.log("EXPENSES:", response.data);
@@ -644,7 +645,7 @@ function TripDetails() {
   const fetchRemainingBudget = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/expenses/trip/${id}/remaining-budget`,
+        `${API_BASE_URL}/api/expenses/trip/${id}/remaining-budget`,
         getAuthConfig()
       );
       setRemainingBudget(Number(response.data) || 0);
@@ -657,7 +658,7 @@ function TripDetails() {
   const fetchCategorySummary = async () => {
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/expenses/trip/${id}/category-summary`,
+        `${API_BASE_URL}/api/expenses/trip/${id}/category-summary`,
         getAuthConfig()
       );
       setCategorySummary(Array.isArray(response.data) ? response.data : []);
@@ -722,13 +723,13 @@ function TripDetails() {
 
       if (editingExpense) {
         await axios.put(
-          `http://localhost:8080/api/expenses/${editingExpense.id}/trip/${id}`,
+          `${API_BASE_URL}/api/expenses/${editingExpense.id}/trip/${id}`,
           payload,
           getAuthConfig()
         );
       } else {
         await axios.post(
-          `http://localhost:8080/api/expenses`,
+          `${API_BASE_URL}/api/expenses`,
           payload,
           getAuthConfig()
         );
@@ -753,7 +754,7 @@ function TripDetails() {
     try {
       setDeletingExpense(expenseId);
       await axios.delete(
-        `http://localhost:8080/api/expenses/${expenseId}/trip/${id}`,
+        `${API_BASE_URL}/api/expenses/${expenseId}/trip/${id}`,
         getAuthConfig()
       );
       await fetchExpenses();
@@ -774,7 +775,7 @@ function TripDetails() {
     try {
       setLoadingItinerary(true);
       const response = await axios.get(
-        `http://localhost:8080/api/trips/${id}/itineraries`,
+        `${API_BASE_URL}/api/trips/${id}/itineraries`,
         getAuthConfig()
       );
       setItineraries(Array.isArray(response.data) ? response.data : []);
@@ -837,13 +838,13 @@ function TripDetails() {
 
       if (editingItinerary) {
         await axios.put(
-          `http://localhost:8080/api/trips/${id}/itineraries/${editingItinerary.id}`,
+          `${API_BASE_URL}/api/trips/${id}/itineraries/${editingItinerary.id}`,
           payload,
           getAuthConfig()
         );
       } else {
         await axios.post(
-          `http://localhost:8080/api/trips/${id}/itineraries`,
+          `${API_BASE_URL}/api/trips/${id}/itineraries`,
           payload,
           getAuthConfig()
         );
@@ -866,7 +867,7 @@ function TripDetails() {
     try {
       setDeletingItinerary(activityId);
       await axios.delete(
-        `http://localhost:8080/api/trips/${id}/itineraries/${activityId}`,
+        `${API_BASE_URL}/api/trips/${id}/itineraries/${activityId}`,
         getAuthConfig()
       );
       await fetchItineraries();

@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 import {
   Chart as ChartJS,
@@ -313,7 +314,7 @@ function Dashboard() {
     uniqueCities.forEach(async (city) => {
       try {
         const response = await axios.get(
-          `http://localhost:8080/api/weather/${encodeURIComponent(city.trim())}`,
+          `${API_BASE_URL}/api/weather/${encodeURIComponent(city.trim())}`,
           getAuthConfig()
         );
         const fields = extractWeatherFields(response.data);
@@ -341,7 +342,7 @@ function Dashboard() {
       setLoadingTrips(true);
 
       const response = await axios.get(
-        "http://localhost:8080/api/dashboard/traveler",
+        `${API_BASE_URL}/api/dashboard/traveler`,
         getAuthConfig()
       );
 
@@ -387,7 +388,7 @@ function Dashboard() {
       setLoadingDestinations(true);
 
       const response = await axios.get(
-        "http://localhost:8080/api/destinations/popular",
+        `${API_BASE_URL}/api/destinations/popular`,
         getAuthConfig(),
       );
 
@@ -428,7 +429,7 @@ function Dashboard() {
       setWeatherError("");
 
       const response = await axios.get(
-        `http://localhost:8080/api/weather/${encodeURIComponent(city.trim())}`,
+        `${API_BASE_URL}/api/weather/${encodeURIComponent(city.trim())}`,
         getAuthConfig(),
       );
 

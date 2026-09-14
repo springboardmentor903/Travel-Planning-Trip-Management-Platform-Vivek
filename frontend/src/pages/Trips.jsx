@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 function Trips() {
@@ -28,7 +29,7 @@ function Trips() {
       setDeletingTrip(true);
       setDeleteError("");
       const token = localStorage.getItem("token");
-      await axios.delete(`http://localhost:8080/api/trips/${tripToDelete.id}`, {
+      await axios.delete(`${API_BASE_URL}/api/trips/${tripToDelete.id}`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },
@@ -58,7 +59,7 @@ function Trips() {
         return;
       }
 
-      const response = await axios.get("http://localhost:8080/api/trips/my", {
+      const response = await axios.get(`${API_BASE_URL}/api/trips/my`, {
         headers: {
           Authorization: `Bearer ${token}`,
         },

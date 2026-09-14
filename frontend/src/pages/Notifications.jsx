@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 
 function Notifications() {
   const navigate = useNavigate();
@@ -52,7 +53,7 @@ function Notifications() {
       setLoading(true);
       setError("");
       const response = await axios.get(
-        "http://localhost:8080/api/notifications",
+        `${API_BASE_URL}/api/notifications`,
         getAuthConfig()
       );
       if (Array.isArray(response.data)) {
@@ -89,7 +90,7 @@ function Notifications() {
     try {
       setMarkingReadId(notificationId);
       const response = await axios.put(
-        `http://localhost:8080/api/notifications/${notificationId}/read`,
+        `${API_BASE_URL}/api/notifications/${notificationId}/read`,
         {},
         getAuthConfig()
       );
@@ -115,7 +116,7 @@ function Notifications() {
     if (unreadCount === 0) return;
     try {
       await axios.put(
-        "http://localhost:8080/api/notifications/read-all",
+        `${API_BASE_URL}/api/notifications/read-all`,
         {},
         getAuthConfig()
       );
@@ -136,7 +137,7 @@ function Notifications() {
       setDeletingId(notificationId);
       setConfirmDeleteId(null);
       await axios.delete(
-        `http://localhost:8080/api/notifications/${notificationId}`,
+        `${API_BASE_URL}/api/notifications/${notificationId}`,
         getAuthConfig()
       );
       setNotifications((prev) => prev.filter((n) => n.id !== notificationId));

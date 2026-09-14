@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useLocation, useNavigate, useParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 function DestinationDetails() {
@@ -41,7 +42,7 @@ function DestinationDetails() {
 
       if (!destinationName && id) {
         const response = await axios.get(
-          `http://localhost:8080/api/destinations/${id}`,
+          `${API_BASE_URL}/api/destinations/${id}`,
           getAuthConfig()
         );
         destinationName = response.data?.name;
@@ -54,7 +55,7 @@ function DestinationDetails() {
       }
 
       const response = await axios.get(
-        "http://localhost:8080/api/destinations/search",
+        `${API_BASE_URL}/api/destinations/search`,
         {
           params: {
             query: `${destinationName} tourist attractions places to visit`,

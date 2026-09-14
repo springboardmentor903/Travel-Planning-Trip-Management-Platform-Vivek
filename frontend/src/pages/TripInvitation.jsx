@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useParams, useSearchParams, useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 
 function TripInvitation() {
   const { token } = useParams();
@@ -33,7 +34,7 @@ function TripInvitation() {
       setLoading(true);
       setError("");
       const response = await axios.get(
-        `http://localhost:8080/api/trip-invitations/public/${token}`
+        `${API_BASE_URL}/api/trip-invitations/public/${token}`
       );
       setInvitation(response.data);
     } catch (err) {
@@ -86,7 +87,7 @@ function TripInvitation() {
       setActionSuccess("");
 
       const response = await axios.post(
-        `http://localhost:8080/api/trip-invitations/${token}/accept`,
+        `${API_BASE_URL}/api/trip-invitations/${token}/accept`,
         {},
         getAuthConfig()
       );
@@ -120,7 +121,7 @@ function TripInvitation() {
       setActionSuccess("");
 
       const response = await axios.post(
-        `http://localhost:8080/api/trip-invitations/${token}/reject`,
+        `${API_BASE_URL}/api/trip-invitations/${token}/reject`,
         {},
         getAuthConfig()
       );

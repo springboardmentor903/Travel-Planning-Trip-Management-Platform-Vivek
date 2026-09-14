@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import axios from "axios";
+import { API_BASE_URL } from "../config/api";
 
 function NotificationDropdown() {
   const navigate = useNavigate();
@@ -36,7 +37,7 @@ function NotificationDropdown() {
       setLoading(true);
       setError("");
       const response = await axios.get(
-        "http://localhost:8080/api/notifications",
+        `${API_BASE_URL}/api/notifications`,
         getAuthConfig()
       );
       if (Array.isArray(response.data)) {
@@ -98,7 +99,7 @@ function NotificationDropdown() {
       setMarkingReadId(notificationId);
 
       const response = await axios.put(
-        `http://localhost:8080/api/notifications/${notificationId}/read`,
+        `${API_BASE_URL}/api/notifications/${notificationId}/read`,
         {},
         getAuthConfig()
       );
@@ -127,7 +128,7 @@ function NotificationDropdown() {
     if (unreadCount === 0) return;
     try {
       await axios.put(
-        "http://localhost:8080/api/notifications/read-all",
+        `${API_BASE_URL}/api/notifications/read-all`,
         {},
         getAuthConfig()
       );
@@ -171,7 +172,7 @@ function NotificationDropdown() {
       setDeletingId(notificationId);
 
       await axios.delete(
-        `http://localhost:8080/api/notifications/${notificationId}`,
+        `${API_BASE_URL}/api/notifications/${notificationId}`,
         getAuthConfig()
       );
 

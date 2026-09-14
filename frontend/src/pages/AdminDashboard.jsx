@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { Link, useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 function AdminDashboard() {
@@ -48,7 +49,7 @@ function AdminDashboard() {
       setUnauthorized(false);
 
       const response = await axios.get(
-        "http://localhost:8080/api/dashboard/admin",
+        `${API_BASE_URL}/api/dashboard/admin`,
         getAuthConfig()
       );
 

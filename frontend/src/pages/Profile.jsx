@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import axios from "axios";
 import { useNavigate, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 import { getDestinationImageUrl, handleImageError } from "../utils/destinationImages";
 
 function Profile() {
@@ -59,7 +60,7 @@ function Profile() {
       }
 
       const response = await axios.get(
-        "http://localhost:8080/api/users/profile",
+        `${API_BASE_URL}/api/users/profile`,
         getAuthConfig()
       );
 
@@ -89,7 +90,7 @@ function Profile() {
       if (!token) return;
 
       const response = await axios.get(
-        "http://localhost:8080/api/users/preferences",
+        `${API_BASE_URL}/api/users/preferences`,
         getAuthConfig()
       );
 
@@ -117,7 +118,7 @@ function Profile() {
   const fetchDestinations = async () => {
     try {
       const response = await axios.get(
-        "http://localhost:8080/api/destinations",
+        `${API_BASE_URL}/api/destinations`,
         getAuthConfig()
       );
       setDestinations(Array.isArray(response.data) ? response.data : []);
@@ -130,7 +131,7 @@ function Profile() {
     try {
       setTripsLoading(true);
       const response = await axios.get(
-        "http://localhost:8080/api/trips/my",
+        `${API_BASE_URL}/api/trips/my`,
         getAuthConfig()
       );
       setTrips(Array.isArray(response.data) ? response.data : []);
@@ -148,7 +149,7 @@ function Profile() {
       setPreferenceMessage("");
 
       await axios.put(
-        "http://localhost:8080/api/users/preferences",
+        `${API_BASE_URL}/api/users/preferences`,
         {
           preferredTravelType: travelType,
           preferredDestinationId: preferredDestinationId
@@ -186,7 +187,7 @@ function Profile() {
       setSuccess("");
 
       const response = await axios.put(
-        "http://localhost:8080/api/users/profile",
+        `${API_BASE_URL}/api/users/profile`,
         { name: editName.trim() },
         getAuthConfig()
       );

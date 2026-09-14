@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import axios from "axios";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import Navbar from "../components/Navbar";
+import { API_BASE_URL } from "../config/api";
 
 function CreateItinerary() {
   const { id } = useParams();
@@ -59,7 +60,7 @@ function CreateItinerary() {
       };
 
       await axios.post(
-        `http://localhost:8080/api/trips/${id}/itineraries`,
+        `${API_BASE_URL}/api/trips/${id}/itineraries`,
         payload,
         getAuthConfig()
       );
