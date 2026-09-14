@@ -1,0 +1,15 @@
+target/
+.mvn/
+mvnw
+mvnw.cmd
+.git/
+.gitignore
+.gitattributes
+.dockerignore
+Dockerfile
+*.md
+.idea/
+*.iml
+.classpath
+.project
+.settings/
