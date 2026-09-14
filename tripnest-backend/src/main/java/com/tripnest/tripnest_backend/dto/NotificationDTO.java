@@ -8,6 +8,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import com.fasterxml.jackson.annotation.JsonProperty;
 
 @Data
 @Builder
@@ -18,11 +19,24 @@ public class NotificationDTO {
     private Long id;
     private String message;
     private NotificationType type;
+
+    @JsonProperty("isRead")
     private boolean isRead;
+
     private Integer tripId;
     private String tripDestination;
     private Long referenceId;
     private LocalDateTime createdAt;
+
+    @JsonProperty("isRead")
+    public boolean isRead() {
+        return isRead;
+    }
+
+    @JsonProperty("isRead")
+    public void setRead(boolean isRead) {
+        this.isRead = isRead;
+    }
 
     public static NotificationDTO fromEntity(Notification notification) {
         if (notification == null) {

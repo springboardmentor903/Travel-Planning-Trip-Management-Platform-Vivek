@@ -73,10 +73,12 @@ function Notifications() {
     }
   };
 
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const isNotificationRead = (n) => Boolean(n.isRead || n.read);
+
+  const unreadCount = notifications.filter((n) => !isNotificationRead(n)).length;
 
   const filteredNotifications = notifications.filter((n) => {
-    if (filter === "unread") return !n.isRead;
+    if (filter === "unread") return !isNotificationRead(n);
     return true;
   });
 
@@ -93,7 +95,11 @@ function Notifications() {
       );
       const updated = response.data;
       setNotifications((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item))
+        prev.map((item) =>
+          item.id === notificationId
+            ? { ...item, ...(updated || {}), isRead: true, read: true }
+            : item
+        )
       );
       showToast("Notification marked as read.", "success");
     } catch (err) {
@@ -114,7 +120,7 @@ function Notifications() {
         getAuthConfig()
       );
       setNotifications((prev) =>
-        prev.map((item) => ({ ...item, isRead: true }))
+        prev.map((item) => ({ ...item, isRead: true, read: true }))
       );
       showToast("All notifications marked as read.", "success");
     } catch (err) {
@@ -145,7 +151,7 @@ function Notifications() {
   };
 
   const handleNotificationClick = (notification) => {
-    if (!notification.isRead) {
+    if (!isNotificationRead(notification)) {
       handleMarkAsRead(notification.id);
     }
     if (notification.tripId) {
@@ -322,7 +328,7 @@ function Notifications() {
           {!loading && !error && filteredNotifications.length > 0 && (
             <div style={styles.list}>
               {filteredNotifications.map((notification) => {
-                const isUnread = !notification.isRead;
+                const isUnread = !isNotificationRead(notification);
                 const isDeleting = deletingId === notification.id;
                 const isMarking = markingReadId === notification.id;
                 const isConfirmingDelete = confirmDeleteId === notification.id;

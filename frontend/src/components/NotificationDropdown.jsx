@@ -85,8 +85,10 @@ function NotificationDropdown() {
     };
   }, [isOpen]);
 
+  const isNotificationRead = (n) => Boolean(n.isRead || n.read);
+
   // Unread count derived purely from persisted isRead from backend
-  const unreadCount = notifications.filter((n) => !n.isRead).length;
+  const unreadCount = notifications.filter((n) => !isNotificationRead(n)).length;
 
   // Mark as Read — persisted in backend, frontend updated only on success
   const handleMarkAsRead = async (notificationId) => {
@@ -104,7 +106,11 @@ function NotificationDropdown() {
       // Update state only on confirmed backend success, using backend's returned value
       const updated = response.data;
       setNotifications((prev) =>
-        prev.map((item) => (item.id === updated.id ? updated : item))
+        prev.map((item) =>
+          item.id === notificationId
+            ? { ...item, ...(updated || {}), isRead: true, read: true }
+            : item
+        )
       );
     } catch (err) {
       console.error("Error marking notification as read:", err);
@@ -126,7 +132,7 @@ function NotificationDropdown() {
         getAuthConfig()
       );
       setNotifications((prev) =>
-        prev.map((item) => ({ ...item, isRead: true }))
+        prev.map((item) => ({ ...item, isRead: true, read: true }))
       );
     } catch (err) {
       console.error("Error marking all notifications as read:", err);
@@ -135,7 +141,7 @@ function NotificationDropdown() {
   };
 
   const handleNotificationClick = (notification) => {
-    if (!notification.isRead) {
+    if (!isNotificationRead(notification)) {
       handleMarkAsRead(notification.id);
     }
     if (notification.tripId) {
@@ -159,7 +165,7 @@ function NotificationDropdown() {
     e.stopPropagation();
     setConfirmDeleteId(null);
 
-    const wasUnread = notifications.find((n) => n.id === notificationId && !n.isRead);
+    const wasUnread = notifications.find((n) => n.id === notificationId && !isNotificationRead(n));
 
     try {
       setDeletingId(notificationId);
@@ -314,7 +320,7 @@ function NotificationDropdown() {
             )}
 
             {notifications.map((notification) => {
-              const isUnread = !notification.isRead;
+              const isUnread = !isNotificationRead(notification);
               const isDeleting = deletingId === notification.id;
               const isMarkingRead = markingReadId === notification.id;
               const isConfirmingDelete = confirmDeleteId === notification.id;
