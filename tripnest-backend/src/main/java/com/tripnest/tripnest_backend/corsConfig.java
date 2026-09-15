@@ -36,7 +36,7 @@ public class corsConfig {
 
         // Build allowed origins
         List<String> allowedOrigins = new ArrayList<>();
-        addCleanOrigin(allowedOrigins, "https://tripnest-frontend-sooty.vercel.app");
+        addCleanOrigin(allowedOrigins, "https://travel-planning-trip-management-platform-91g1.onrender.com");
         addCleanOrigin(allowedOrigins, "http://localhost:5173");
         addCleanOrigin(allowedOrigins, "http://localhost:3000");
 
