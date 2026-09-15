@@ -221,8 +221,9 @@ function Dashboard() {
 
   const rawName = localStorage.getItem("userName") || "Traveler";
   const userRole = localStorage.getItem("userRole") || "";
+  const isAdmin = userRole === "ADMINISTRATOR";
   const displayName =
-    rawName.toLowerCase().startsWith("default") || userRole === "ADMINISTRATOR"
+    rawName.toLowerCase().startsWith("default") || isAdmin
       ? "Admin"
       : rawName.split(" ")[0];
 
@@ -512,14 +513,22 @@ function Dashboard() {
           </div>
 
           <div style={styles.welcomeActions}>
-            <Link to="/trips/create" style={styles.primaryActionButton}>
-              <span>＋</span>
-              <span>Create New Trip</span>
-            </Link>
-            <Link to="/destinations" style={styles.secondaryActionButton}>
+            {!isAdmin && (
+              <Link to="/trips/create" style={styles.primaryActionButton} id="dashboard-create-trip-btn">
+                <span>＋</span>
+                <span>Create New Trip</span>
+              </Link>
+            )}
+            <Link to="/destinations" style={styles.secondaryActionButton} id="dashboard-explore-places-btn">
               <span>🌍</span>
               <span>Explore Places</span>
             </Link>
+            {isAdmin && (
+              <Link to="/admin" style={styles.primaryActionButton} id="dashboard-admin-console-btn">
+                <span>🛡️</span>
+                <span>Admin Console</span>
+              </Link>
+            )}
           </div>
         </section>
 
@@ -994,11 +1003,19 @@ function Dashboard() {
               <div style={styles.emptyIcon}>✈️</div>
               <h3 style={styles.emptyTitle}>No upcoming trips found</h3>
               <p style={styles.emptySubtitle}>
-                You don't have any future journeys scheduled. Plan your next adventure now!
+                {isAdmin
+                  ? "You are signed in as an Administrator. Monitor trips and platform metrics from the Admin Console."
+                  : "You don't have any future journeys scheduled. Plan your next adventure now!"}
               </p>
-              <Link to="/trips/create" style={styles.primaryActionButton}>
-                ＋ Plan Your Next Trip
-              </Link>
+              {!isAdmin ? (
+                <Link to="/trips/create" style={styles.primaryActionButton} id="dashboard-empty-plan-trip-btn">
+                  ＋ Plan Your Next Trip
+                </Link>
+              ) : (
+                <Link to="/admin" style={styles.primaryActionButton} id="dashboard-empty-admin-console-btn">
+                  🛡️ Open Admin Console
+                </Link>
+              )}
             </div>
           ) : (
             <div style={styles.tripsGrid}>

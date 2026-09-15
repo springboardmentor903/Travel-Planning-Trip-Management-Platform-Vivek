@@ -22,8 +22,9 @@ function Navbar({ activePage }) {
   const rawUserName = localStorage.getItem("userName") || "Traveler";
   const userEmail = localStorage.getItem("userEmail") || "";
   const userRole = localStorage.getItem("userRole") || "";
+  const isAdmin = userRole === "ADMINISTRATOR";
   const userName =
-    rawUserName.toLowerCase().startsWith("default") || userRole === "ADMINISTRATOR"
+    rawUserName.toLowerCase().startsWith("default") || isAdmin
       ? "Admin"
       : rawUserName;
 
@@ -89,10 +90,12 @@ function Navbar({ activePage }) {
                 <div style={styles.userSection}>
                   <NotificationDropdown />
 
-                  <Link to="/trips/create" style={styles.createTripBtn}>
-                    <span>＋</span>
-                    <span>Create Trip</span>
-                  </Link>
+                  {!isAdmin && (
+                    <Link to="/trips/create" style={styles.createTripBtn} id="nav-create-trip-btn">
+                      <span>＋</span>
+                      <span>Create Trip</span>
+                    </Link>
+                  )}
 
                   <div
                     style={styles.userBadge}
@@ -179,13 +182,16 @@ function Navbar({ activePage }) {
                   );
                 })}
 
-                <Link
-                  to="/trips/create"
-                  onClick={() => setMobileMenuOpen(false)}
-                  style={styles.mobileCreateBtn}
-                >
-                  ＋ Create New Trip
-                </Link>
+                {!isAdmin && (
+                  <Link
+                    to="/trips/create"
+                    onClick={() => setMobileMenuOpen(false)}
+                    style={styles.mobileCreateBtn}
+                    id="mobile-nav-create-trip-btn"
+                  >
+                    ＋ Create New Trip
+                  </Link>
+                )}
               </div>
 
               <div style={styles.mobileLogoutWrapper}>

@@ -18,6 +18,8 @@ function Trips() {
   const [tripToDelete, setTripToDelete] = useState(null);
   const [deletingTrip, setDeletingTrip] = useState(false);
   const [deleteError, setDeleteError] = useState("");
+  const userRole = localStorage.getItem("userRole") || "";
+  const isAdmin = userRole === "ADMINISTRATOR";
 
   useEffect(() => {
     fetchTrips();
@@ -137,10 +139,12 @@ function Trips() {
             </p>
           </div>
 
-          <Link to="/trips/create" style={styles.createTripBtn}>
-            <span>＋</span>
-            <span>Plan New Trip</span>
-          </Link>
+          {!isAdmin && (
+            <Link to="/trips/create" style={styles.createTripBtn} id="trips-plan-new-trip-btn">
+              <span>＋</span>
+              <span>Plan New Trip</span>
+            </Link>
+          )}
         </div>
 
         {/* Filter / Search Bar */}
@@ -206,9 +210,15 @@ function Trips() {
                 ? "Try adjusting your search terms or filters to find what you are looking for."
                 : "Start organizing your upcoming adventures, day-by-day itineraries, and group expenses."}
             </p>
-            <Link to="/trips/create" style={styles.emptyActionBtn}>
-              ＋ Create a Trip
-            </Link>
+            {!isAdmin ? (
+              <Link to="/trips/create" style={styles.emptyActionBtn} id="trips-empty-create-trip-btn">
+                ＋ Create a Trip
+              </Link>
+            ) : (
+              <Link to="/admin" style={styles.emptyActionBtn} id="trips-empty-admin-console-btn">
+                🛡️ Open Admin Console
+              </Link>
+            )}
           </div>
         ) : (
           <div style={styles.grid}>

@@ -15,6 +15,13 @@ function AdminDashboard() {
     platformStats: { totalExpenses: 0, totalNotifications: 0, totalExpenseAmount: 0 },
   });
 
+  const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [userSearch, setUserSearch] = useState("");
+  const [roleFilter, setRoleFilter] = useState("ALL");
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [updatingRoleId, setUpdatingRoleId] = useState(null);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [unauthorized, setUnauthorized] = useState(false);
@@ -39,6 +46,7 @@ function AdminDashboard() {
     }
 
     fetchAdminDashboard();
+    fetchUsersList();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -52,8 +60,6 @@ function AdminDashboard() {
         `${API_BASE_URL}/api/dashboard/admin`,
         getAuthConfig()
       );
-
-      console.log("Admin Dashboard Data:", response.data);
 
       if (response.data) {
         setAdminData({
@@ -80,6 +86,53 @@ function AdminDashboard() {
       setLoading(false);
     }
   };
+
+  const fetchUsersList = async () => {
+    try {
+      setLoadingUsers(true);
+      const res = await axios.get(`${API_BASE_URL}/api/admin/users`, getAuthConfig());
+      if (Array.isArray(res.data)) {
+        setUsers(res.data);
+      }
+    } catch (err) {
+      console.error("Error fetching registered users list:", err);
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const handleRoleChange = async (userId, newRole) => {
+    try {
+      setUpdatingRoleId(userId);
+      const res = await axios.put(
+        `${API_BASE_URL}/api/admin/users/${userId}/role`,
+        { roleName: newRole },
+        getAuthConfig()
+      );
+      if (res.data) {
+        setUsers((prev) =>
+          prev.map((u) => (u.id === userId ? { ...u, role: res.data.role || newRole } : u))
+        );
+        if (selectedUser && selectedUser.id === userId) {
+          setSelectedUser((prev) => ({ ...prev, role: res.data.role || newRole }));
+        }
+      }
+    } catch (err) {
+      console.error("Error updating user role:", err);
+      alert(err.response?.data?.message || "Failed to update user role");
+    } finally {
+      setUpdatingRoleId(null);
+    }
+  };
+
+  const filteredUsers = users.filter((u) => {
+    const matchesSearch =
+      (u.name && u.name.toLowerCase().includes(userSearch.toLowerCase())) ||
+      (u.email && u.email.toLowerCase().includes(userSearch.toLowerCase()));
+    const matchesRole =
+      roleFilter === "ALL" || (u.role && u.role.toUpperCase() === roleFilter.toUpperCase());
+    return matchesSearch && matchesRole;
+  });
 
   if (unauthorized) {
     return (
@@ -110,25 +163,32 @@ function AdminDashboard() {
       <main style={styles.container}>
         {error && <div style={styles.errorAlert}>⚠️ {error}</div>}
 
-        {/* ── Admin Header Banner ── */}
+        {/* ── Admin Header Banner (NO Create Trip button) ── */}
         <section style={styles.headerBanner}>
           <div style={styles.headerContent}>
-            <span style={styles.adminBadge}>ADMINISTRATIVE CONSOLE</span>
-            <h1 style={styles.headerTitle}>Platform Analytics</h1>
+            <span style={styles.adminBadge}>🛡️ ADMINISTRATIVE CONSOLE</span>
+            <h1 style={styles.headerTitle}>Platform Analytics & Management</h1>
             <p style={styles.headerSubtitle}>
-              Overview of registered users, active trips, platform destinations, and operational metrics.
+              System overview of registered users, platform trips, destination activity, and user permissions.
             </p>
           </div>
 
           <div style={styles.headerActions}>
+            <Link to="/destinations" style={styles.exploreBtn} id="admin-explore-places-btn">
+              🌍 Explore Places
+            </Link>
             <button
               style={styles.refreshBtn}
-              onClick={fetchAdminDashboard}
+              onClick={() => {
+                fetchAdminDashboard();
+                fetchUsersList();
+              }}
               disabled={loading}
+              id="admin-refresh-metrics-btn"
             >
               {loading ? "Refreshing..." : "↻ Refresh Metrics"}
             </button>
-            <Link to="/dashboard" style={styles.secondaryBtn}>
+            <Link to="/dashboard" style={styles.secondaryBtn} id="admin-traveler-view-btn">
               Traveler View →
             </Link>
           </div>
@@ -142,9 +202,9 @@ function AdminDashboard() {
               👥
             </div>
             <div>
-              <div style={styles.statLabel}>Registered Users</div>
+              <div style={styles.statLabel}>Total Registered Users</div>
               <div style={styles.statNumber}>
-                {loading ? "..." : (adminData.userAnalytics?.totalUsers ?? 0)}
+                {loading ? "..." : (adminData.userAnalytics?.totalUsers ?? users.length)}
               </div>
             </div>
           </div>
@@ -211,7 +271,7 @@ function AdminDashboard() {
               </div>
             ) : (
               <div style={styles.destList}>
-                {adminData.destinationAnalytics.slice(0, 10).map((item, idx) => (
+                {adminData.destinationAnalytics.slice(0, 8).map((item, idx) => (
                   <div key={item.destination || idx} style={styles.destListItem}>
                     <div style={styles.destRankWrap}>
                       <span style={styles.rankNumber}>#{idx + 1}</span>
@@ -280,6 +340,233 @@ function AdminDashboard() {
             </div>
           </section>
         </div>
+
+        {/* ── User Management Section ── */}
+        <section style={styles.userManagementSection} id="admin-user-management-section">
+          <div style={styles.userSectionHeader}>
+            <div>
+              <div style={styles.userSectionBadge}>👥 USER ADMINISTRATION</div>
+              <h2 style={styles.userSectionTitle}>Registered Travelers & User Management</h2>
+              <p style={styles.userSectionSub}>
+                Inspect registered users, manage platform roles, and view user details securely without exposing sensitive credentials.
+              </p>
+            </div>
+
+            <div style={styles.userSearchWrapper}>
+              <span style={styles.searchIcon}>🔍</span>
+              <input
+                type="text"
+                placeholder="Search by name or email..."
+                value={userSearch}
+                onChange={(e) => setUserSearch(e.target.value)}
+                style={styles.searchInput}
+                id="admin-user-search-input"
+              />
+            </div>
+          </div>
+
+          {/* Role Filter Tabs */}
+          <div style={styles.filterTabsRow}>
+            {["ALL", "TRAVELER", "GROUP_ADMIN", "ADMINISTRATOR"].map((r) => (
+              <button
+                key={r}
+                onClick={() => setRoleFilter(r)}
+                style={{
+                  ...styles.filterTab,
+                  ...(roleFilter === r ? styles.filterTabActive : {}),
+                }}
+              >
+                {r === "ALL" ? "All Users" : r.replace("_", " ")}
+                <span style={styles.filterCountBadge}>
+                  {r === "ALL"
+                    ? users.length
+                    : users.filter((u) => u.role?.toUpperCase() === r).length}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Users Table */}
+          {loadingUsers ? (
+            <div style={styles.loadingBox}>
+              <p>Loading user management data...</p>
+            </div>
+          ) : filteredUsers.length === 0 ? (
+            <div style={styles.emptyCardMini}>
+              <p>No registered users found matching the search criteria.</p>
+            </div>
+          ) : (
+            <div style={styles.tableWrapper}>
+              <table style={styles.userTable}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>User</th>
+                    <th style={styles.th}>Email Address</th>
+                    <th style={styles.th}>Platform Role</th>
+                    <th style={styles.th}>Account Status</th>
+                    <th style={{ ...styles.th, textAlign: "right" }}>Actions</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredUsers.map((u) => {
+                    const isCurrentUser =
+                      u.email === localStorage.getItem("userEmail");
+                    const roleColor =
+                      u.role === "ADMINISTRATOR"
+                        ? { bg: "#fef3c7", text: "#92400e", border: "#fde68a" }
+                        : u.role === "GROUP_ADMIN"
+                        ? { bg: "#ede9fe", text: "#6d28d9", border: "#ddd6fe" }
+                        : { bg: "#e0f2fe", text: "#0369a1", border: "#bae6fd" };
+
+                    return (
+                      <tr key={u.id} style={styles.tr}>
+                        <td style={styles.td}>
+                          <div style={styles.userNameCell}>
+                            <div style={styles.userAvatar}>
+                              {u.name ? u.name.charAt(0).toUpperCase() : "U"}
+                            </div>
+                            <div>
+                              <div style={styles.userNameText}>
+                                {u.name || "Unnamed User"}
+                                {isCurrentUser && (
+                                  <span style={styles.youBadge}>You</span>
+                                )}
+                              </div>
+                              <div style={styles.userIdText}>ID: #{u.id}</div>
+                            </div>
+                          </div>
+                        </td>
+
+                        <td style={styles.td}>
+                          <span style={styles.emailText}>{u.email}</span>
+                        </td>
+
+                        <td style={styles.td}>
+                          <span
+                            style={{
+                              ...styles.roleBadge,
+                              backgroundColor: roleColor.bg,
+                              color: roleColor.text,
+                              borderColor: roleColor.border,
+                            }}
+                          >
+                            {u.role || "TRAVELER"}
+                          </span>
+                        </td>
+
+                        <td style={styles.td}>
+                          <span style={styles.statusPill}>
+                            <span style={styles.statusDot}>●</span> Active
+                          </span>
+                        </td>
+
+                        <td style={{ ...styles.td, textAlign: "right" }}>
+                          <div style={styles.actionRow}>
+                            <select
+                              value={u.role || "TRAVELER"}
+                              disabled={updatingRoleId === u.id || isCurrentUser}
+                              onChange={(e) => handleRoleChange(u.id, e.target.value)}
+                              style={styles.roleSelect}
+                              title="Change user platform role"
+                            >
+                              <option value="TRAVELER">TRAVELER</option>
+                              <option value="GROUP_ADMIN">GROUP_ADMIN</option>
+                              <option value="ADMINISTRATOR">ADMINISTRATOR</option>
+                            </select>
+
+                            <button
+                              style={styles.viewDetailBtn}
+                              onClick={() => setSelectedUser(u)}
+                              title="View user details"
+                            >
+                              View Details
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+
+        {/* ── User Details Modal ── */}
+        {selectedUser && (
+          <div style={styles.modalOverlay} onClick={() => setSelectedUser(null)}>
+            <div style={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <div style={styles.modalHeaderTitleWrap}>
+                  <div style={styles.modalAvatar}>
+                    {selectedUser.name ? selectedUser.name.charAt(0).toUpperCase() : "U"}
+                  </div>
+                  <div>
+                    <h3 style={styles.modalUserName}>{selectedUser.name || "User Details"}</h3>
+                    <p style={styles.modalUserSub}>Registered TripNest Account Details</p>
+                  </div>
+                </div>
+                <button
+                  style={styles.modalCloseBtn}
+                  onClick={() => setSelectedUser(null)}
+                  aria-label="Close"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div style={styles.modalBody}>
+                <div style={styles.detailGrid}>
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>User ID</span>
+                    <span style={styles.detailValue}>#{selectedUser.id}</span>
+                  </div>
+
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Email Address</span>
+                    <span style={styles.detailValue}>{selectedUser.email}</span>
+                  </div>
+
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Phone</span>
+                    <span style={styles.detailValueMuted}>Not provided</span>
+                  </div>
+
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Assigned Role</span>
+                    <span style={styles.detailValue}>{selectedUser.role || "TRAVELER"}</span>
+                  </div>
+
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Account Status</span>
+                    <span style={styles.detailValueGreen}>● Active</span>
+                  </div>
+
+                  <div style={styles.detailItem}>
+                    <span style={styles.detailLabel}>Authentication Type</span>
+                    <span style={styles.detailValue}>Standard Email / JWT</span>
+                  </div>
+                </div>
+
+                <div style={styles.securityNotice}>
+                  <span>🔒</span>
+                  <span>
+                    Sensitive security credentials (passwords, password hashes, auth tokens) are strictly hidden and not accessible.
+                  </span>
+                </div>
+              </div>
+
+              <div style={styles.modalFooter}>
+                <button
+                  style={styles.modalCloseFooterBtn}
+                  onClick={() => setSelectedUser(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   );
@@ -298,118 +585,140 @@ const styles = {
     maxWidth: "1240px",
     width: "92%",
     margin: "0 auto",
-    padding: "32px 0 60px",
+    padding: "36px 0 60px",
+    flex: 1,
   },
 
   errorAlert: {
     background: "#fef2f2",
-    border: "1px solid #fecaca",
     color: "#b91c1c",
-    padding: "14px 18px",
+    border: "1px solid #fecaca",
+    padding: "14px 20px",
     borderRadius: "12px",
     marginBottom: "24px",
     fontWeight: "600",
+    fontSize: "14px",
   },
 
   headerBanner: {
     background: "linear-gradient(135deg, #0f172a 0%, #1e293b 100%)",
     borderRadius: "20px",
     padding: "36px 40px",
+    marginBottom: "32px",
     color: "#ffffff",
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: "28px",
-    boxShadow: "0 10px 25px rgba(15, 23, 42, 0.12)",
     flexWrap: "wrap",
     gap: "24px",
+    boxShadow: "0 10px 30px rgba(15, 23, 42, 0.15)",
   },
 
   headerContent: {
-    maxWidth: "640px",
+    maxWidth: "600px",
   },
 
   adminBadge: {
     display: "inline-block",
-    background: "rgba(255, 255, 255, 0.12)",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
-    padding: "4px 12px",
-    borderRadius: "20px",
+    background: "rgba(2, 132, 199, 0.25)",
+    border: "1px solid rgba(56, 189, 248, 0.4)",
+    color: "#38bdf8",
     fontSize: "11px",
     fontWeight: "800",
     letterSpacing: "1px",
-    color: "#38bdf8",
+    padding: "4px 10px",
+    borderRadius: "6px",
     marginBottom: "12px",
   },
 
   headerTitle: {
-    margin: "0 0 8px",
-    fontSize: "clamp(24px, 3.5vw, 32px)",
+    fontSize: "30px",
     fontWeight: "800",
+    margin: "0 0 10px",
+    letterSpacing: "-0.5px",
     color: "#ffffff",
   },
 
   headerSubtitle: {
-    margin: 0,
     fontSize: "15px",
     color: "#94a3b8",
-    lineHeight: "1.5",
+    margin: 0,
+    lineHeight: "1.6",
   },
 
   headerActions: {
     display: "flex",
     gap: "12px",
+    alignItems: "center",
     flexWrap: "wrap",
   },
 
-  refreshBtn: {
-    background: "#0284c7",
+  exploreBtn: {
+    background: "rgba(255, 255, 255, 0.12)",
     color: "#ffffff",
-    padding: "12px 20px",
-    borderRadius: "10px",
-    fontWeight: "700",
-    fontSize: "14px",
-    border: "none",
-    cursor: "pointer",
-    boxShadow: "0 2px 8px rgba(2, 132, 199, 0.3)",
-  },
-
-  secondaryBtn: {
-    display: "inline-flex",
-    alignItems: "center",
-    background: "rgba(255, 255, 255, 0.1)",
-    color: "#ffffff",
-    border: "1px solid rgba(255, 255, 255, 0.2)",
-    padding: "12px 20px",
+    padding: "11px 20px",
     borderRadius: "10px",
     fontWeight: "600",
     fontSize: "14px",
     textDecoration: "none",
+    border: "1px solid rgba(255, 255, 255, 0.2)",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "8px",
+    transition: "all 0.2s ease",
+  },
+
+  refreshBtn: {
+    background: "rgba(255, 255, 255, 0.08)",
+    color: "#ffffff",
+    padding: "11px 18px",
+    borderRadius: "10px",
+    fontWeight: "600",
+    fontSize: "14px",
+    border: "1px solid rgba(255, 255, 255, 0.15)",
     cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    transition: "all 0.2s ease",
+  },
+
+  secondaryBtn: {
+    background: "#0284c7",
+    color: "#ffffff",
+    padding: "11px 20px",
+    borderRadius: "10px",
+    fontWeight: "700",
+    fontSize: "14px",
+    textDecoration: "none",
+    border: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    boxShadow: "0 2px 8px rgba(2, 132, 199, 0.35)",
   },
 
   statsGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
-    gap: "18px",
-    marginBottom: "28px",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "20px",
+    marginBottom: "32px",
   },
 
   statCard: {
     background: "#ffffff",
     borderRadius: "16px",
-    padding: "22px",
-    border: "1px solid #e2e8f0",
+    padding: "24px",
     display: "flex",
     alignItems: "center",
-    gap: "16px",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
+    gap: "18px",
+    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.04)",
+    border: "1px solid #e2e8f0",
   },
 
   statIconBox: {
-    width: "48px",
-    height: "48px",
-    borderRadius: "12px",
+    width: "52px",
+    height: "52px",
+    borderRadius: "14px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -419,32 +728,31 @@ const styles = {
 
   statLabel: {
     fontSize: "13px",
-    color: "#64748b",
     fontWeight: "600",
+    color: "#64748b",
     marginBottom: "4px",
   },
 
   statNumber: {
-    fontSize: "24px",
+    fontSize: "26px",
     fontWeight: "800",
     color: "#0f172a",
+    letterSpacing: "-0.5px",
   },
 
   twoColGrid: {
     display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(360px, 1fr))",
+    gridTemplateColumns: "repeat(auto-fit, minmax(460px, 1fr))",
     gap: "24px",
     marginBottom: "32px",
   },
 
   cardBox: {
     background: "#ffffff",
-    borderRadius: "16px",
-    padding: "24px",
+    borderRadius: "18px",
+    padding: "28px",
+    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.04)",
     border: "1px solid #e2e8f0",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.02)",
-    display: "flex",
-    flexDirection: "column",
   },
 
   cardBoxHeader: {
@@ -452,50 +760,32 @@ const styles = {
     alignItems: "center",
     gap: "14px",
     marginBottom: "20px",
-    paddingBottom: "14px",
+    paddingBottom: "16px",
     borderBottom: "1px solid #f1f5f9",
   },
 
   cardBoxIconWrap: {
+    fontSize: "26px",
+    background: "#f0f9ff",
     width: "44px",
     height: "44px",
     borderRadius: "12px",
-    background: "#eff6ff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    fontSize: "20px",
-    flexShrink: 0,
   },
 
   cardBoxTitle: {
-    margin: 0,
-    fontSize: "18px",
+    fontSize: "17px",
     fontWeight: "700",
     color: "#0f172a",
+    margin: "0 0 2px",
   },
 
   cardBoxSub: {
-    margin: "3px 0 0",
-    fontSize: "13px",
+    fontSize: "12px",
     color: "#64748b",
-  },
-
-  loadingBox: {
-    padding: "36px",
-    textAlign: "center",
-    color: "#64748b",
-    fontSize: "14px",
-  },
-
-  emptyCardMini: {
-    padding: "30px",
-    textAlign: "center",
-    color: "#64748b",
-    background: "#f8fafc",
-    borderRadius: "12px",
-    border: "1px dashed #cbd5e1",
-    fontSize: "14px",
+    margin: 0,
   },
 
   destList: {
@@ -605,6 +895,400 @@ const styles = {
   platformMetricDesc: {
     fontSize: "12px",
     color: "#64748b",
+  },
+
+  /* ── User Management Styles ── */
+  userManagementSection: {
+    background: "#ffffff",
+    borderRadius: "18px",
+    padding: "32px",
+    boxShadow: "0 4px 16px rgba(0, 0, 0, 0.04)",
+    border: "1px solid #e2e8f0",
+    marginBottom: "32px",
+  },
+
+  userSectionHeader: {
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
+    flexWrap: "wrap",
+    gap: "18px",
+    marginBottom: "24px",
+  },
+
+  userSectionBadge: {
+    fontSize: "11px",
+    fontWeight: "800",
+    color: "#0284c7",
+    letterSpacing: "0.8px",
+    marginBottom: "6px",
+  },
+
+  userSectionTitle: {
+    fontSize: "20px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 6px",
+  },
+
+  userSectionSub: {
+    fontSize: "14px",
+    color: "#64748b",
+    margin: 0,
+    maxWidth: "680px",
+    lineHeight: "1.5",
+  },
+
+  userSearchWrapper: {
+    display: "flex",
+    alignItems: "center",
+    gap: "8px",
+    background: "#f8fafc",
+    border: "1px solid #cbd5e1",
+    borderRadius: "10px",
+    padding: "8px 14px",
+    minWidth: "280px",
+  },
+
+  searchIcon: {
+    fontSize: "14px",
+    color: "#94a3b8",
+  },
+
+  searchInput: {
+    border: "none",
+    background: "transparent",
+    outline: "none",
+    fontSize: "13px",
+    color: "#0f172a",
+    width: "100%",
+  },
+
+  filterTabsRow: {
+    display: "flex",
+    gap: "8px",
+    marginBottom: "20px",
+    flexWrap: "wrap",
+  },
+
+  filterTab: {
+    background: "#f1f5f9",
+    border: "1px solid #e2e8f0",
+    padding: "7px 14px",
+    borderRadius: "8px",
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#475569",
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+
+  filterTabActive: {
+    background: "#0284c7",
+    color: "#ffffff",
+    borderColor: "#0284c7",
+  },
+
+  filterCountBadge: {
+    fontSize: "11px",
+    padding: "1px 6px",
+    borderRadius: "10px",
+    background: "rgba(0, 0, 0, 0.1)",
+  },
+
+  tableWrapper: {
+    overflowX: "auto",
+  },
+
+  userTable: {
+    width: "100%",
+    borderCollapse: "collapse",
+    textAlign: "left",
+  },
+
+  th: {
+    fontSize: "12px",
+    fontWeight: "700",
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+    padding: "12px 16px",
+    borderBottom: "2px solid #f1f5f9",
+  },
+
+  tr: {
+    borderBottom: "1px solid #f1f5f9",
+    transition: "background 0.15s ease",
+  },
+
+  td: {
+    padding: "14px 16px",
+    fontSize: "13px",
+    verticalAlign: "middle",
+  },
+
+  userNameCell: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+
+  userAvatar: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    background: "#e0f2fe",
+    color: "#0284c7",
+    fontWeight: "800",
+    fontSize: "14px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    flexShrink: 0,
+  },
+
+  userNameText: {
+    fontWeight: "700",
+    color: "#0f172a",
+    display: "flex",
+    alignItems: "center",
+    gap: "6px",
+  },
+
+  youBadge: {
+    fontSize: "10px",
+    fontWeight: "700",
+    background: "#dcfce7",
+    color: "#15803d",
+    padding: "2px 6px",
+    borderRadius: "4px",
+  },
+
+  userIdText: {
+    fontSize: "11px",
+    color: "#94a3b8",
+  },
+
+  emailText: {
+    color: "#475569",
+    fontFamily: "monospace",
+    fontSize: "12px",
+  },
+
+  roleBadge: {
+    display: "inline-block",
+    fontSize: "11px",
+    fontWeight: "700",
+    padding: "3px 10px",
+    borderRadius: "20px",
+    border: "1px solid",
+  },
+
+  statusPill: {
+    display: "inline-flex",
+    alignItems: "center",
+    gap: "6px",
+    fontSize: "12px",
+    fontWeight: "600",
+    color: "#16a34a",
+  },
+
+  statusDot: {
+    fontSize: "10px",
+  },
+
+  actionRow: {
+    display: "flex",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    gap: "8px",
+  },
+
+  roleSelect: {
+    fontSize: "12px",
+    fontWeight: "600",
+    padding: "6px 10px",
+    borderRadius: "6px",
+    border: "1px solid #cbd5e1",
+    background: "#ffffff",
+    color: "#334155",
+    cursor: "pointer",
+    outline: "none",
+  },
+
+  viewDetailBtn: {
+    background: "#f1f5f9",
+    border: "1px solid #cbd5e1",
+    color: "#0f172a",
+    padding: "6px 12px",
+    borderRadius: "6px",
+    fontSize: "12px",
+    fontWeight: "600",
+    cursor: "pointer",
+  },
+
+  /* ── User Details Modal ── */
+  modalOverlay: {
+    position: "fixed",
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    background: "rgba(15, 23, 42, 0.6)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+    padding: "20px",
+  },
+
+  modalContent: {
+    background: "#ffffff",
+    borderRadius: "18px",
+    width: "100%",
+    maxWidth: "500px",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.2)",
+    overflow: "hidden",
+  },
+
+  modalHeader: {
+    padding: "20px 24px",
+    borderBottom: "1px solid #f1f5f9",
+    display: "flex",
+    justifyContent: "space-between",
+    alignItems: "center",
+  },
+
+  modalHeaderTitleWrap: {
+    display: "flex",
+    alignItems: "center",
+    gap: "12px",
+  },
+
+  modalAvatar: {
+    width: "42px",
+    height: "42px",
+    borderRadius: "50%",
+    background: "#0284c7",
+    color: "#ffffff",
+    fontWeight: "800",
+    fontSize: "16px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+
+  modalUserName: {
+    fontSize: "17px",
+    fontWeight: "800",
+    color: "#0f172a",
+    margin: "0 0 2px",
+  },
+
+  modalUserSub: {
+    fontSize: "12px",
+    color: "#64748b",
+    margin: 0,
+  },
+
+  modalCloseBtn: {
+    background: "transparent",
+    border: "none",
+    fontSize: "18px",
+    color: "#94a3b8",
+    cursor: "pointer",
+    padding: "4px",
+  },
+
+  modalBody: {
+    padding: "24px",
+  },
+
+  detailGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: "16px",
+    marginBottom: "20px",
+  },
+
+  detailItem: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+  },
+
+  detailLabel: {
+    fontSize: "11px",
+    fontWeight: "700",
+    color: "#64748b",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+  },
+
+  detailValue: {
+    fontSize: "14px",
+    fontWeight: "600",
+    color: "#0f172a",
+  },
+
+  detailValueMuted: {
+    fontSize: "13px",
+    color: "#94a3b8",
+    fontStyle: "italic",
+  },
+
+  detailValueGreen: {
+    fontSize: "13px",
+    fontWeight: "700",
+    color: "#16a34a",
+  },
+
+  securityNotice: {
+    display: "flex",
+    alignItems: "flex-start",
+    gap: "10px",
+    background: "#f0fdf4",
+    border: "1px solid #bbf7d0",
+    borderRadius: "10px",
+    padding: "12px 14px",
+    fontSize: "12px",
+    color: "#166534",
+    lineHeight: "1.5",
+  },
+
+  modalFooter: {
+    padding: "14px 24px",
+    background: "#f8fafc",
+    borderTop: "1px solid #f1f5f9",
+    display: "flex",
+    justifyContent: "flex-end",
+  },
+
+  modalCloseFooterBtn: {
+    background: "#0f172a",
+    color: "#ffffff",
+    border: "none",
+    padding: "8px 18px",
+    borderRadius: "8px",
+    fontWeight: "600",
+    fontSize: "13px",
+    cursor: "pointer",
+  },
+
+  loadingBox: {
+    padding: "40px 20px",
+    textAlign: "center",
+    color: "#64748b",
+    fontSize: "14px",
+  },
+
+  emptyCardMini: {
+    padding: "30px 20px",
+    textAlign: "center",
+    color: "#94a3b8",
+    fontSize: "13px",
   },
 
   unauthorizedCard: {

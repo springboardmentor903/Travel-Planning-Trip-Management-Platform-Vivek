@@ -17,6 +17,8 @@ function DestinationDetails() {
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const userRole = localStorage.getItem("userRole") || "";
+  const isAdmin = userRole === "ADMINISTRATOR";
 
   useEffect(() => {
     loadDestinationPlaces();
@@ -111,12 +113,14 @@ function DestinationDetails() {
           </div>
 
           <div style={styles.heroActions}>
-            <Link to="/trips/create" style={styles.planTripBtn}>
-              <span>＋</span>
-              <span>Plan Trip to {destinationName}</span>
-            </Link>
+            {!isAdmin && (
+              <Link to="/trips/create" style={styles.planTripBtn} id="dest-plan-trip-btn">
+                <span>＋</span>
+                <span>Plan Trip to {destinationName}</span>
+              </Link>
+            )}
 
-            <Link to="/destinations" style={styles.backBtn}>
+            <Link to="/destinations" style={styles.backBtn} id="dest-back-btn">
               ← Back to Destinations
             </Link>
           </div>
