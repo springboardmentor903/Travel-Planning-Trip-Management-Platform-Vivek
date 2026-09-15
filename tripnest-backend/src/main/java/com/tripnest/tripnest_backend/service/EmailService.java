@@ -80,7 +80,10 @@ public class EmailService {
             mailSender.send(message);
             log.info("[TripNest Mail] Email sent successfully");
         } catch (Exception ex) {
-            log.warn("[TripNest Mail] Email sending failed: {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
+            log.warn("[TripNest Mail] Email sending failed: {} - {} (Cause: {})",
+                    ex.getClass().getSimpleName(),
+                    ex.getMessage(),
+                    ex.getCause() != null ? ex.getCause().getMessage() : "none");
         }
     }
 
@@ -122,7 +125,10 @@ public class EmailService {
             mailSender.send(mimeMessage);
             log.info("[TripNest Mail] Email sent successfully");
         } catch (Exception ex) {
-            log.warn("[TripNest Mail] Email sending failed: {} - {}", ex.getClass().getSimpleName(), ex.getMessage());
+            log.warn("[TripNest Mail] HTML email sending failed: {} - {} (Cause: {})",
+                    ex.getClass().getSimpleName(),
+                    ex.getMessage(),
+                    ex.getCause() != null ? ex.getCause().getMessage() : "none");
         }
     }
 
