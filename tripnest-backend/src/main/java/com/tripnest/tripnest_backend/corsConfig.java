@@ -39,7 +39,9 @@ public class corsConfig {
 
         // Build allowed origins
         List<String> allowedOrigins = new ArrayList<>();
+        addCleanOrigin(allowedOrigins, "https://travel-planning-trip-management-platform-9lg1.onrender.com");
         addCleanOrigin(allowedOrigins, "https://travel-planning-trip-management-platform-91g1.onrender.com");
+        addCleanOrigin(allowedOrigins, "https://tripnest-frontend-sooty.vercel.app");
         addCleanOrigin(allowedOrigins, "http://localhost:5173");
         addCleanOrigin(allowedOrigins, "http://localhost:3000");
 
@@ -50,6 +52,11 @@ public class corsConfig {
         addCleanOrigin(allowedOrigins, configuredFrontendUrl);
 
         configuration.setAllowedOrigins(allowedOrigins);
+
+        // Also allow origin patterns for onrender.com and vercel.app domains (works with allowCredentials=true)
+        configuration.setAllowedOriginPatterns(
+                List.of("https://*.onrender.com", "https://*.vercel.app", "http://localhost:*", "http://127.0.0.1:*")
+        );
 
         configuration.setAllowedMethods(
                 List.of("GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS")
