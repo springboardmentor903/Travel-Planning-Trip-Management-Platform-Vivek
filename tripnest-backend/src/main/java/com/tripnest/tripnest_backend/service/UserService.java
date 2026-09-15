@@ -60,7 +60,9 @@ public class UserService {
 
     public AuthResponse loginUser(LoginRequest request) {
 
-        User user = userRepository.findByEmail(request.getEmail())
+        String email = request.getEmail() != null ? request.getEmail().trim() : "";
+        User user = userRepository.findByEmailIgnoreCase(email)
+                .or(() -> userRepository.findByEmail(email))
                 .orElseThrow(() -> new RuntimeException("Invalid email or password"));
 
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
