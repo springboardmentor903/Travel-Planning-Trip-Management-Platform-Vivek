@@ -8,12 +8,27 @@ import { getDestinationImageUrl, handleImageError } from "../utils/destinationIm
 function DestinationDetails() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { id } = useParams();
+  const { placeId, id } = useParams();
+  const targetId = placeId || id;
 
-  const [destination, setDestination] = useState(
-    location.state?.destination || null
-  );
+  const passedPlace = location.state?.place;
+  const passedDest = location.state?.destination;
 
+  const initialDestination =
+    passedDest ||
+    (passedPlace
+      ? {
+          name:
+            passedPlace.displayName?.text ||
+            passedPlace.displayName ||
+            passedPlace.formattedAddress ||
+            passedPlace.name ||
+            "",
+          id: passedPlace.id,
+        }
+      : null);
+
+  const [destination, setDestination] = useState(initialDestination);
   const [places, setPlaces] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -22,7 +37,7 @@ function DestinationDetails() {
 
   useEffect(() => {
     loadDestinationPlaces();
-  }, []);
+  }, [targetId]);
 
   const getAuthConfig = () => {
     const token = localStorage.getItem("token");
@@ -42,13 +57,37 @@ function DestinationDetails() {
 
       let destinationName = destination?.name;
 
-      if (!destinationName && id) {
-        const response = await axios.get(
-          `${API_BASE_URL}/api/destinations/${id}`,
-          getAuthConfig()
-        );
-        destinationName = response.data?.name;
-        setDestination(response.data);
+      if (!destinationName && targetId) {
+        if (/^\d+$/.test(targetId)) {
+          // Numeric database ID
+          const response = await axios.get(
+            `${API_BASE_URL}/api/destinations/${targetId}`,
+            getAuthConfig()
+          );
+          destinationName = response.data?.name;
+          setDestination(response.data);
+        } else {
+          // Google Places alphanumeric ID
+          try {
+            const response = await axios.get(
+              `${API_BASE_URL}/api/destinations/place-details`,
+              {
+                params: { placeId: targetId },
+                ...getAuthConfig(),
+              }
+            );
+            destinationName =
+              response.data?.displayName?.text ||
+              response.data?.displayName ||
+              response.data?.name ||
+              targetId;
+            setDestination({ name: destinationName, id: targetId });
+          } catch (placeErr) {
+            console.warn("Place details lookup fallback to ID as name:", placeErr);
+            destinationName = targetId;
+            setDestination({ name: destinationName, id: targetId });
+          }
+        }
       }
 
       if (!destinationName) {

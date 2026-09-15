@@ -534,9 +534,14 @@ function TripDetails() {
       console.log("BUDGET RESPONSE:", response.data);
       setBudget(response.data);
     } catch (err) {
-      console.error("Error fetching budget:", err);
-      if (handleAuthError(err)) return;
-      setBudget(null);
+      if (err.response?.status === 404) {
+        // Budget not set yet for this trip - expected default state
+        setBudget(null);
+      } else {
+        console.error("Error fetching budget:", err);
+        if (handleAuthError(err)) return;
+        setBudget(null);
+      }
     } finally {
       setLoadingBudget(false);
     }
@@ -1441,11 +1446,11 @@ function TripDetails() {
             ) : (
               <div style={styles.timelineList}>
                 {itineraries.map((item, index) => (
-                  <div key={item.id || index} style={styles.timelineItem}>
+                  <div key={item?.id || index} style={styles.timelineItem}>
                     {/* Left Day Pill */}
                     <div style={styles.dayBadgeBox}>
-                      <span style={styles.dayNumberText}>Day {item.dayNumber || index + 1}</span>
-                      {item.date && (
+                      <span style={styles.dayNumberText}>Day {item?.dayNumber || index + 1}</span>
+                      {item?.date && (
                         <span style={styles.dayDateText}>{formatDate(item.date)}</span>
                       )}
                     </div>
@@ -1459,7 +1464,14 @@ function TripDetails() {
                     {/* Activity Card */}
                     <div style={styles.activityCard}>
                       <div style={styles.activityHeader}>
-                        <h4 style={styles.activityTitle}>{item.title}</h4>
+                        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                          <h4 style={styles.activityTitle}>{item?.title || "Activity"}</h4>
+                          {item?.startTime && (
+                            <span style={{ fontSize: "12px", color: "#64748b", fontWeight: "600", background: "#f1f5f9", padding: "2px 8px", borderRadius: "6px" }}>
+                              🕒 {item.startTime}
+                            </span>
+                          )}
+                        </div>
                         <div style={styles.activityActionButtons}>
                           <button
                             style={styles.smallEditBtn}
@@ -1470,16 +1482,16 @@ function TripDetails() {
                           </button>
                           <button
                             style={styles.smallDeleteBtn}
-                            onClick={() => handleDeleteItinerary(item.id)}
-                            disabled={deletingItinerary === item.id}
+                            onClick={() => handleDeleteItinerary(item?.id)}
+                            disabled={deletingItinerary === item?.id}
                             title="Delete Activity"
                           >
-                            {deletingItinerary === item.id ? "..." : "🗑️"}
+                            {deletingItinerary === item?.id ? "..." : "🗑️"}
                           </button>
                         </div>
                       </div>
 
-                      {item.description && (
+                      {item?.description && (
                         <p style={styles.activityDesc}>{item.description}</p>
                       )}
                     </div>
