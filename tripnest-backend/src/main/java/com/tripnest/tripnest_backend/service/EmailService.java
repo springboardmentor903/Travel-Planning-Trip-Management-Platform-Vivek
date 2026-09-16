@@ -2,76 +2,45 @@ package com.tripnest.tripnest_backend.service;
 
 import com.tripnest.tripnest_backend.entity.Trip;
 import com.tripnest.tripnest_backend.entity.User;
+import jakarta.mail.internet.MimeMessage;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
-import org.springframework.http.ResponseEntity;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.HttpStatusCodeException;
-import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
 
 @Service
 @Slf4j
 public class EmailService {
 
-    private static final String RESEND_API_URL = "https://api.resend.com/emails";
+    private final JavaMailSender mailSender;
 
-    private final RestTemplate restTemplate;
-
-    @Value("${resend.api.key:${RESEND_API_KEY:}}")
-    private String resendApiKey;
-
-    @Value("${resend.mail.from:${MAIL_FROM:}}")
-    private String configuredMailFrom;
+    @Value("${spring.mail.username:}")
+    private String configuredSenderUsername;
 
     @Value("${app.frontend.base-url:http://localhost:5173}")
     private String frontendBaseUrl;
 
     @Autowired
-    public EmailService(@Autowired(required = false) RestTemplate restTemplate) {
-        this.restTemplate = (restTemplate != null) ? restTemplate : new RestTemplate();
-    }
-
-    private String getApiKey() {
-        if (resendApiKey != null && !resendApiKey.trim().isEmpty()) {
-            return resendApiKey.trim();
-        }
-        String envKey = System.getenv("RESEND_API_KEY");
-        if (envKey != null && !envKey.trim().isEmpty()) {
-            return envKey.trim();
-        }
-        return "";
+    public EmailService(@Autowired(required = false) JavaMailSender mailSender) {
+        this.mailSender = mailSender;
     }
 
     private String getSenderEmail() {
-        String from = (configuredMailFrom != null && !configuredMailFrom.trim().isEmpty())
-                ? configuredMailFrom.trim()
-                : System.getenv("MAIL_FROM");
-
-        if (from == null || from.trim().isEmpty()) {
-            String legacyEnv = System.getenv("SPRING_MAIL_USERNAME");
-            if (legacyEnv != null && !legacyEnv.trim().isEmpty()) {
-                from = legacyEnv.trim();
-            } else {
-                from = "onboarding@resend.dev";
-            }
+        if (configuredSenderUsername != null && !configuredSenderUsername.trim().isEmpty()) {
+            return configuredSenderUsername.trim();
         }
-
-        from = from.trim();
-        if (!from.contains("<") && !from.contains(">")) {
-            return "TripNest <" + from + ">";
+        String envUser = System.getenv("SPRING_MAIL_USERNAME");
+        if (envUser != null && !envUser.trim().isEmpty()) {
+            return envUser.trim();
         }
-        return from;
+        return "";
     }
 
     private String getFrontendBaseUrl() {
@@ -83,7 +52,39 @@ public class EmailService {
 
     @Async
     public void sendEmail(String toEmail, String subject, String body) {
-        sendEmailInternal(toEmail, subject, null, body, null);
+        if (mailSender == null) {
+            log.info("[TripNest Mail] JavaMailSender is not configured. Skipping email to: {}", toEmail);
+            return;
+        }
+
+        if (toEmail == null || toEmail.trim().isEmpty()) {
+            log.warn("[TripNest Mail] Recipient email is empty. Skipping email.");
+            return;
+        }
+
+        String from = getSenderEmail();
+        if (from.isEmpty()) {
+            log.warn("[TripNest Mail] Sender email is not configured. Skipping email to: {}", toEmail);
+            return;
+        }
+
+        try {
+            log.info("[TripNest Mail] Preparing email");
+            log.info("[TripNest Mail] Recipient configured");
+            SimpleMailMessage message = new SimpleMailMessage();
+            message.setFrom("TripNest <" + from + ">");
+            message.setTo(toEmail.trim());
+            message.setSubject(subject);
+            message.setText(body);
+            log.info("[TripNest Mail] Sending email");
+            mailSender.send(message);
+            log.info("[TripNest Mail] Email sent successfully");
+        } catch (Exception ex) {
+            log.warn("[TripNest Mail] Email sending failed: {} - {} (Cause: {})",
+                    ex.getClass().getSimpleName(),
+                    ex.getMessage(),
+                    ex.getCause() != null ? ex.getCause().getMessage() : "none");
+        }
     }
 
     public void sendHtmlEmail(String toEmail, String subject, String htmlContent) {
@@ -92,66 +93,44 @@ public class EmailService {
 
     @Async
     public void sendHtmlEmail(String toEmail, String subject, String htmlContent, String replyTo) {
-        sendEmailInternal(toEmail, subject, htmlContent, null, replyTo);
-    }
-
-    private void sendEmailInternal(String toEmail, String subject, String htmlContent, String textContent, String replyTo) {
-        if (toEmail == null || toEmail.trim().isEmpty()) {
-            log.warn("[TripNest Mail] Recipient email is empty. Skipping email.");
+        if (mailSender == null) {
+            log.info("[TripNest Mail] JavaMailSender is not configured. Skipping HTML email to: {}", toEmail);
             return;
         }
 
-        String apiKey = getApiKey();
-        if (apiKey.isEmpty()) {
-            log.warn("[TripNest Mail] RESEND_API_KEY is not configured. Skipping email to: {}", toEmail.trim());
+        if (toEmail == null || toEmail.trim().isEmpty()) {
+            log.warn("[TripNest Mail] Recipient email is empty. Skipping HTML email.");
             return;
         }
 
         String from = getSenderEmail();
+        if (from.isEmpty()) {
+            log.warn("[TripNest Mail] Sender email is not configured. Skipping HTML email to: {}", toEmail);
+            return;
+        }
 
         try {
             log.info("[TripNest Mail] Preparing email");
             log.info("[TripNest Mail] Recipient configured");
-
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_JSON);
-            headers.setBearerAuth(apiKey);
-
-            Map<String, Object> payload = new LinkedHashMap<>();
-            payload.put("from", from);
-            payload.put("to", Collections.singletonList(toEmail.trim()));
-            payload.put("subject", subject);
-            if (htmlContent != null && !htmlContent.trim().isEmpty()) {
-                payload.put("html", htmlContent);
-            }
-            if (textContent != null && !textContent.trim().isEmpty()) {
-                payload.put("text", textContent);
-            }
+            MimeMessage mimeMessage = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(mimeMessage, true, "UTF-8");
+            helper.setFrom(from, "TripNest");
+            helper.setTo(toEmail.trim());
+            helper.setSubject(subject);
+            helper.setText(htmlContent, true);
             if (replyTo != null && !replyTo.trim().isEmpty()) {
-                payload.put("reply_to", replyTo.trim());
+                helper.setReplyTo(replyTo.trim());
             }
-
-            HttpEntity<Map<String, Object>> requestEntity = new HttpEntity<>(payload, headers);
-
-            log.info("[TripNest Mail] Sending email via Resend");
-            ResponseEntity<String> response = restTemplate.postForEntity(RESEND_API_URL, requestEntity, String.class);
-
-            if (response != null && response.getStatusCode().is2xxSuccessful()) {
-                log.info("[TripNest Mail] Email sent successfully");
-            } else {
-                log.warn("[TripNest Mail] Resend API responded with status: {}", response != null ? response.getStatusCode() : "unknown");
-            }
-        } catch (HttpStatusCodeException ex) {
-            log.warn("[TripNest Mail] Resend API error: Status {}, Response: {}",
-                    ex.getStatusCode(),
-                    ex.getResponseBodyAsString());
+            log.info("[TripNest Mail] Sending email");
+            mailSender.send(mimeMessage);
+            log.info("[TripNest Mail] Email sent successfully");
         } catch (Exception ex) {
-            log.warn("[TripNest Mail] Failed to send email via Resend: {} - {}",
+            log.warn("[TripNest Mail] HTML email sending failed: {} - {} (Cause: {})",
                     ex.getClass().getSimpleName(),
-                    ex.getMessage());
+                    ex.getMessage(),
+                    ex.getCause() != null ? ex.getCause().getMessage() : "none");
         }
     }
-
 
     // =====================================================
     // 0. TRIP INVITATION EMAIL (To Invitee with Action Links)

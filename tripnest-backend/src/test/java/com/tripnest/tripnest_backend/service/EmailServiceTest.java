@@ -3,32 +3,31 @@ package com.tripnest.tripnest_backend.service;
 import com.tripnest.tripnest_backend.entity.Destination;
 import com.tripnest.tripnest_backend.entity.Trip;
 import com.tripnest.tripnest_backend.entity.User;
+import jakarta.mail.internet.MimeMessage;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpEntity;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.ResponseEntity;
-import org.springframework.test.util.ReflectionTestUtils;
-import org.springframework.web.client.HttpClientErrorException;
-import org.springframework.web.client.RestTemplate;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 class EmailServiceTest {
 
     @Mock
-    private RestTemplate restTemplate;
+    private JavaMailSender mailSender;
+
+    @Mock
+    private MimeMessage mimeMessage;
 
     @InjectMocks
     private EmailService emailService;
@@ -39,9 +38,6 @@ class EmailServiceTest {
 
     @BeforeEach
     void setUp() {
-        ReflectionTestUtils.setField(emailService, "resendApiKey", "re_test_123456789");
-        ReflectionTestUtils.setField(emailService, "configuredMailFrom", "onboarding@resend.dev");
-
         owner = new User();
         owner.setId(1);
         owner.setName("Trip Owner");
@@ -66,68 +62,62 @@ class EmailServiceTest {
 
     @Test
     void testSendJoinRequestEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendJoinRequestEmail(owner, "Alice Traveler", trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendJoinRequestApprovedEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendJoinRequestApprovedEmail(requester, trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendJoinRequestRejectedEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendJoinRequestRejectedEmail(requester, trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendMemberAddedEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendMemberAddedEmail(requester, trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendLoginNotificationEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendLoginNotificationEmail(requester, LocalDateTime.now())
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
-    void testSendEmail_GracefulFailureWhenRestTemplateThrows() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenThrow(new RuntimeException("Connection Refused"));
+    void testSendEmail_GracefulFailureWhenMailSenderThrows() {
+        doThrow(new RuntimeException("SMTP Server Down")).when(mailSender).send(any(SimpleMailMessage.class));
 
         assertDoesNotThrow(() ->
                 emailService.sendEmail("test@example.com", "Test Subject", "Test Body")
@@ -135,9 +125,9 @@ class EmailServiceTest {
     }
 
     @Test
-    void testSendHtmlEmail_GracefulFailureWhenResendReturns4xx() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenThrow(new HttpClientErrorException(HttpStatus.UNPROCESSABLE_ENTITY, "Validation error"));
+    void testSendHtmlEmail_GracefulFailureWhenMailSenderThrows() {
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
+        doThrow(new RuntimeException("SMTP Connection Refused")).when(mailSender).send(any(MimeMessage.class));
 
         assertDoesNotThrow(() ->
                 emailService.sendHtmlEmail("test@example.com", "Test Subject", "<p>Test</p>")
@@ -145,87 +135,68 @@ class EmailServiceTest {
     }
 
     @Test
-    void testEmailService_WhenApiKeyIsMissing() {
-        EmailService serviceWithoutKey = new EmailService(restTemplate);
-        ReflectionTestUtils.setField(serviceWithoutKey, "resendApiKey", "");
+    void testEmailService_WhenMailSenderIsNull() {
+        EmailService serviceWithNullSender = new EmailService(null);
 
         assertDoesNotThrow(() -> {
-            serviceWithoutKey.sendEmail("test@example.com", "Subject", "Body");
-            serviceWithoutKey.sendHtmlEmail("test@example.com", "Subject", "<p>Html</p>");
-            serviceWithoutKey.sendLoginNotificationEmail(requester, LocalDateTime.now());
+            serviceWithNullSender.sendEmail("test@example.com", "Subject", "Body");
+            serviceWithNullSender.sendHtmlEmail("test@example.com", "Subject", "<p>Html</p>");
+            serviceWithNullSender.sendLoginNotificationEmail(requester, LocalDateTime.now());
         });
-
-        verify(restTemplate, never()).postForEntity(any(), any(), any());
-    }
-
-    @Test
-    void testEmailService_WhenRecipientIsEmpty() {
-        assertDoesNotThrow(() -> {
-            emailService.sendEmail("", "Subject", "Body");
-            emailService.sendHtmlEmail(null, "Subject", "<p>Html</p>");
-        });
-
-        verify(restTemplate, never()).postForEntity(any(), any(), any());
     }
 
     @Test
     void testSendTripInvitationEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendTripInvitationEmail(owner, requester, trip, "token-1234", "http://localhost:5173")
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendInvitationAcceptedEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendInvitationAcceptedEmail(owner, requester, trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendInvitationRejectedEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendInvitationRejectedEmail(owner, requester, trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendReminderEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendReminderEmail(requester, "Upcoming Trip", "Starts tomorrow!", trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 
     @Test
     void testSendJoinRequestEmail_WithRequesterEmail_Success() {
-        when(restTemplate.postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class)))
-                .thenReturn(new ResponseEntity<>("{\"id\":\"123\"}", HttpStatus.OK));
+        when(mailSender.createMimeMessage()).thenReturn(mimeMessage);
 
         assertDoesNotThrow(() ->
                 emailService.sendJoinRequestEmail(owner, "Alice Traveler", "alice@example.com", trip)
         );
 
-        verify(restTemplate, times(1)).postForEntity(eq("https://api.resend.com/emails"), any(HttpEntity.class), eq(String.class));
+        verify(mailSender, times(1)).send(mimeMessage);
     }
 }
-
